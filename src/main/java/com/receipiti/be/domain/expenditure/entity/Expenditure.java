@@ -1,5 +1,6 @@
 package com.receipiti.be.domain.expenditure.entity;
 
+import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.expenditure.enums.Currency;
 import com.receipiti.be.domain.expenditure.enums.InputType;
 import com.receipiti.be.domain.member.entity.Member;
@@ -25,9 +26,9 @@ public class Expenditure extends BaseEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "category_id", nullable = false)
-//    private Category category;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 //
 //    @ManyToOne(fetch = FetchType.LAZY)
 //    @JoinColumn(name = "store_id", nullable = false)
