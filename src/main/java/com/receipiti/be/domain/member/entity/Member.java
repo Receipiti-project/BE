@@ -1,5 +1,6 @@
-package com.receipiti.be.domain.member;
+package com.receipiti.be.domain.member.entity;
 
+import com.receipiti.be.domain.member.enums.SocialType;
 import com.receipiti.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
