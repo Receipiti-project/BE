@@ -34,7 +34,7 @@ public class Store extends BaseEntity {
 
     @Column(name="biz_category")
     private String bizCategory;
-    
+
     private BigDecimal latitude;
 
     private BigDecimal longitude;
