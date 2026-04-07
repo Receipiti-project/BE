@@ -4,6 +4,7 @@ import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.expenditure.enums.Currency;
 import com.receipiti.be.domain.expenditure.enums.InputType;
 import com.receipiti.be.domain.member.entity.Member;
+import com.receipiti.be.domain.store.entity.Store;
 import com.receipiti.be.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -29,10 +30,10 @@ public class Expenditure extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
-//
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "store_id", nullable = false)
-//    private Store store;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
 
     @Column(nullable = false)
     private Long amount;
