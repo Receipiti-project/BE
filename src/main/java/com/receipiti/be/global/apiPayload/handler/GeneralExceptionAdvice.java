@@ -7,6 +7,7 @@ import com.receipiti.be.global.apiPayload.exception.GeneralException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,7 +30,7 @@ public class GeneralExceptionAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> onException(Exception exception, HttpServletRequest request) {
         log.error("시스템 에러 발생", exception);
-        return getExceptionResponseEntity(GeneralErrorCode.INTERNAL_SERVER_ERROR, exception.getMessage());
+        return getExceptionResponseEntity(GeneralErrorCode.INTERNAL_SERVER_ERROR, null);
     }
 
     @Override
@@ -38,11 +39,14 @@ public class GeneralExceptionAdvice extends ResponseEntityExceptionHandler {
 
         log.warn("스프링 표준 예외 발생: {}", ex.getMessage());
 
-        BaseErrorCode errorCode = GeneralErrorCode.BAD_REQUEST;
 
         return super.handleExceptionInternal(
                 ex,
-                ApiResponse.onFailure(errorCode.getCode(), errorCode.getMessage(), ex.getMessage()),
+                ApiResponse.onFailure(
+                        "COMMON_" + statusCode.value(),
+                        HttpStatus.valueOf(statusCode.value()).getReasonPhrase(),
+                        ex.getMessage()
+                ),
                 headers,
                 statusCode,
                 request

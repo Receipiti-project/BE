@@ -21,7 +21,7 @@ public class ApiResponse<T> {
 
     // 일반적인 성공 응답
     public static <T> ApiResponse<T> onSuccess(T result) {
-        return ApiResponse.of(GeneralSuccessCode._OK, result);
+        return ApiResponse.of(GeneralSuccessCode.OK, result);
     }
 
     // 상황별 성공 응답

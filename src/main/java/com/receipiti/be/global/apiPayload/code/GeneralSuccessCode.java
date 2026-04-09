@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum GeneralSuccessCode implements BaseSuccessCode {
-    _OK(HttpStatus.OK, "COMMON_200", "성공입니다.");
+    OK(HttpStatus.OK, "COMMON_200", "성공입니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
