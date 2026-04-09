@@ -3,6 +3,7 @@ package com.receipiti.be.global.apiPayload;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.receipiti.be.global.apiPayload.code.BaseSuccessCode;
+import com.receipiti.be.global.apiPayload.code.GeneralSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -20,7 +21,7 @@ public class ApiResponse<T> {
 
     // 일반적인 성공 응답
     public static <T> ApiResponse<T> onSuccess(T result) {
-        return new ApiResponse<>(true, "COMMON200", "요청에 성공하였습니다.", result);
+        return ApiResponse.of(GeneralSuccessCode._OK, result);
     }
 
     // 상황별 성공 응답
