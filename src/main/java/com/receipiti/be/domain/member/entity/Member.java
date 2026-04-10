@@ -31,4 +31,10 @@ public class Member extends BaseEntity {
     @Column(nullable = false)
     private String email;
 
+    public Member update(String nickname, String email) {
+        this.nickname = nickname;
+        this.email = email;
+        return this;
+    }
+
 }
