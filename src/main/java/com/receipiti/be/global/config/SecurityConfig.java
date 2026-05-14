@@ -19,7 +19,6 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2UserService oAuth2UserService;
 
     // 인증 없이 접근 가능한 주소들
     private final String[] allowUris = {

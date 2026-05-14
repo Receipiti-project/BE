@@ -1,5 +1,6 @@
 package com.receipiti.be.domain.member.service;
 
+import com.receipiti.be.domain.member.dto.OAuth2Attributes;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.domain.member.enums.SocialType;
 import com.receipiti.be.domain.member.repository.MemberRepository;
@@ -31,14 +32,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         Map<String, Object> attributes = oAuth2User.getAttributes();
         Long socialId = (Long) attributes.get("id");
 
-        Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-        String email = (String) kakaoAccount.get("email");
-
-        Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
-        String nickname = (String) profile.get("nickname");
+        OAuth2Attributes oAuth2Attributes = OAuth2Attributes.of(socialType, attributes);
 
         // 회원 저장 또는 업데이트
-        Member member = saveOrUpdate(socialId, socialType, nickname, email);
+        Member member = saveOrUpdate(socialId, socialType, oAuth2Attributes.getNickname(), oAuth2Attributes.getEmail());
 
         // 시큐리티 세션에 저장될 유저 정보 반환
         return oAuth2User;
