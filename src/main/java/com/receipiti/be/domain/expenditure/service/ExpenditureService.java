@@ -1,11 +1,11 @@
 package com.receipiti.be.domain.expenditure.service;
 
 import com.receipiti.be.domain.category.entity.Category;
-import com.receipiti.be.domain.category.exception.CategoryNotFoundException;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.DailyExpenditureGroup;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureElement;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.entity.Expenditure;
@@ -15,6 +15,8 @@ import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.domain.store.entity.Store;
 import com.receipiti.be.domain.store.repository.StoreRepository;
+import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
+import com.receipiti.be.global.apiPayload.exception.GeneralException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -37,7 +39,7 @@ public class ExpenditureService {
     public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request){
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new CategoryNotFoundException("존재하지 않는 카테고리입니다."));
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
 
         Store store = storeRepository.findByName(request.getStoreName())
                 .orElseGet(() -> storeRepository.save(
@@ -68,7 +70,7 @@ public class ExpenditureService {
     }
 
     @Transactional(readOnly = true)
-    public ExpenditureListResponse getExpenditureList(Member member, int year, int month){
+    public ExpenditureListResponse getExpenditureList(Member member, int year, int month) {
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime endDateTime = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
@@ -92,7 +94,7 @@ public class ExpenditureService {
 
                     // 일별 총 금액
                     Long dailyTotal = list.stream().mapToLong(Expenditure::getAmount).sum();
-                    
+
                     List<ExpenditureElement> elements = list.stream()
                             .map(exp -> ExpenditureElement.builder()
                                     .expenditureId(exp.getId())
@@ -109,7 +111,25 @@ public class ExpenditureService {
                 })
                 .sorted((g1, g2) -> g2.getDate().compareTo(g1.getDate())) // 최근 날짜가 맨 위로 오게 정렬
                 .collect(Collectors.toList());
-
         return new ExpenditureListResponse(totalAmount, dailyExpenditures);
+
+    }
+    @Transactional(readOnly = true)
+    public ExpenditureDetailResponse getExpenditureDetail(Member member, Long expenditureId) {
+        Expenditure expenditure = expenditureRepository.findByIdAndMember(expenditureId, member)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.EXPENDITURE_NOT_FOUND));
+
+        return ExpenditureDetailResponse.builder()
+                .expenditureId(expenditure.getId())
+                .categoryId(expenditure.getCategory().getId())
+                .categoryName(expenditure.getCategory().getName())
+                .storeName(expenditure.getStore().getName())
+                .amount(expenditure.getAmount())
+                .expenditureDate(expenditure.getExpenditureDate())
+                .memo(expenditure.getMemo())
+                .currency(expenditure.getCurrency())
+                .inputType(expenditure.getInputType())
+                .createdAt(expenditure.getCreatedAt())
+                .build();
     }
 }

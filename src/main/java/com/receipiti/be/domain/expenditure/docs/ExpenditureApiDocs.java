@@ -2,6 +2,7 @@ package com.receipiti.be.domain.expenditure.docs;
 
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.member.entity.Member;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,5 +29,12 @@ public interface ExpenditureApiDocs {
             Member member,
             int year,
             int month
+    );
+
+    @Operation(summary = "지출 내역 상세 조회", description = "특정 지출 내역의 상세 정보를 조회합니다.")
+    @Parameter(name = "id", description = "조회할 지출 내역의 id", example = "1")
+    ResponseEntity<ExpenditureDetailResponse> getExpenditureDetail(
+            Member member,
+            Long expenditureId
     );
 }
