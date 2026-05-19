@@ -81,28 +81,31 @@ public class ExpenditureService {
                 .mapToLong(Expenditure::getAmount)
                 .sum();
 
-        Map<LocalDate, List<ExpenditureElement>> groupedByDate = expenditures.stream()
-                .map(exp -> ExpenditureElement.builder()
-                        .expenditureId(exp.getId())
-                        .categoryName(exp.getCategory().getName())
-                        .storeName(exp.getStore().getName())
-                        .amount(exp.getAmount())
-                        .expenditureDate(exp.getExpenditureDate())
-                        .memo(exp.getMemo())
-                        .currency(exp.getCurrency())
-                        .build())
+        Map<LocalDate, List<Expenditure>> groupedByDate = expenditures.stream()
                 .collect(Collectors.groupingBy(element -> element.getExpenditureDate().toLocalDate()));
 
         // 쪼갠 데이터를 일별 그룹 DTO 리스트로 가공 및 날짜 최신순 정렬
         List<DailyExpenditureGroup> dailyExpenditures = groupedByDate.entrySet().stream()
                 .map(entry -> {
                     LocalDate date = entry.getKey();
-                    List<ExpenditureElement> list = entry.getValue();
+                    List<Expenditure> list = entry.getValue();
 
                     // 일별 총 금액
-                    Long dailyTotal = list.stream().mapToLong(ExpenditureElement::getAmount).sum();
+                    Long dailyTotal = list.stream().mapToLong(Expenditure::getAmount).sum();
+                    
+                    List<ExpenditureElement> elements = list.stream()
+                            .map(exp -> ExpenditureElement.builder()
+                                    .expenditureId(exp.getId())
+                                    .categoryName(exp.getCategory().getName())
+                                    .storeName(exp.getStore().getName())
+                                    .amount(exp.getAmount())
+                                    .expenditureDate(exp.getExpenditureDate())
+                                    .memo(exp.getMemo())
+                                    .currency(exp.getCurrency())
+                                    .build())
+                            .collect(Collectors.toList());
 
-                    return new DailyExpenditureGroup(date, dailyTotal, list);
+                    return new DailyExpenditureGroup(date, dailyTotal, elements);
                 })
                 .sorted((g1, g2) -> g2.getDate().compareTo(g1.getDate())) // 최근 날짜가 맨 위로 오게 정렬
                 .collect(Collectors.toList());
