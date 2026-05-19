@@ -3,6 +3,7 @@ package com.receipiti.be.domain.expenditure.controller;
 import com.receipiti.be.domain.expenditure.docs.ExpenditureApiDocs;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.service.ExpenditureService;
 import com.receipiti.be.domain.member.entity.Member;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -45,6 +47,18 @@ public class ExpenditureController implements ExpenditureApiDocs {
             @RequestParam int month) {
         log.info("지출 목록 조회 요청 - 년도: {}, 월: {}", year, month);
         ExpenditureListResponse response = expenditureService.getExpenditureList(member, year, month);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @GetMapping("/{id}")
+    public ResponseEntity<ExpenditureDetailResponse> getExpenditureDetail(
+            @AuthenticationPrincipal Member member,
+            @PathVariable Long id) {
+
+        log.info("지출 상세 조회 요청 - 유저: {}, 지출ID: {}", member.getNickname(), id);
+        ExpenditureDetailResponse response = expenditureService.getExpenditureDetail(member, id);
 
         return ResponseEntity.ok(response);
     }
