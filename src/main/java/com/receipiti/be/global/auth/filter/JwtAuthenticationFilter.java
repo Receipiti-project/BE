@@ -29,15 +29,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token)) {
-            System.out.println("token: " + token);
-            System.out.println("valid: " + jwtTokenProvider.validateToken(token));
 
             if (jwtTokenProvider.validateToken(token)) {
                 Long socialId = Long.valueOf(jwtTokenProvider.getSocialId(token));
-                System.out.println("socialId: " + socialId);
 
                 Member member = memberRepository.findBySocialId(socialId).orElse(null);
-                System.out.println("member: " + member);
 
                 if (member != null) {
                     UsernamePasswordAuthenticationToken authentication =

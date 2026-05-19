@@ -10,9 +10,14 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ExpenditureCreateRequest{
+    @jakarta.validation.constraints.NotNull
     private Long categoryId;
+    @jakarta.validation.constraints.NotBlank
     private String storeName;
+    @jakarta.validation.constraints.NotNull
+    @jakarta.validation.constraints.Positive
     private Long amount;
+    @jakarta.validation.constraints.NotNull
     private LocalDateTime expenditureDate;
     private String memo;
     private Currency currency;

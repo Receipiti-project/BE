@@ -1,6 +1,7 @@
 package com.receipiti.be.domain.expenditure.service;
 
 import com.receipiti.be.domain.category.entity.Category;
+import com.receipiti.be.domain.category.exception.CategoryNotFoundException;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
@@ -27,11 +28,9 @@ public class ExpenditureService {
     private final StoreRepository storeRepository;
 
     public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request){
-        System.out.println("categoryId: " + request.getCategoryId());
-        System.out.println("storeName: " + request.getStoreName());
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다"));
+                .orElseThrow(() -> new CategoryNotFoundException("존재하지 않는 카테고리입니다."));
 
         Store store = storeRepository.findByName(request.getStoreName())
                 .orElseGet(() -> storeRepository.save(
