@@ -10,8 +10,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface ExpenditureRepository extends JpaRepository<Expenditure, Long> {
     @Query("SELECT e FROM Expenditure e " +
+            "JOIN FETCH e.category " +
+            "JOIN FETCH e.store " +
             "WHERE e.member = :member " +
-            "AND e.expenditureDate BETWEEN :start AND :end " +
+            "AND e.expenditureDate >= :start AND e.expenditureDate < :end " +
             "ORDER BY e.expenditureDate DESC")
     List<Expenditure> findByMonth(
             @Param("member") Member member,

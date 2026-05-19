@@ -71,7 +71,7 @@ public class ExpenditureService {
     public ExpenditureListResponse getExpenditureList(Member member, int year, int month){
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
-        LocalDateTime endDateTime = yearMonth.atEndOfMonth().atTime(23, 59, 59);
+        LocalDateTime endDateTime = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
         List<Expenditure> expenditures = expenditureRepository
                 .findByMonth(member, startDateTime, endDateTime);
