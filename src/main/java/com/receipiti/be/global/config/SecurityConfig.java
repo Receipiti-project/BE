@@ -1,6 +1,7 @@
 package com.receipiti.be.global.config;
 
 import com.receipiti.be.domain.member.service.CustomOAuth2UserService;
+import com.receipiti.be.global.auth.filter.JwtAuthenticationFilter;
 import com.receipiti.be.global.auth.handler.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -8,10 +9,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -23,7 +25,8 @@ public class SecurityConfig {
     // 인증 없이 접근 가능한 주소들
     private final String[] allowUris = {
             "/swagger-ui/**",
-            "/v1/api-docs/**",
+            "/v3/api-docs/**",
+            "/api-docs/**",
             "/error",
             "/login/**",
             "/oauth2/**",
@@ -31,11 +34,14 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, OAuth2SuccessHandler oAuth2SuccessHandler) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, OAuth2SuccessHandler oAuth2SuccessHandler,
+                                           JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)    // CSRF 끄기
                 .formLogin(AbstractHttpConfigurer::disable) // 기본 폼 로그인 끄기
                 .httpBasic(AbstractHttpConfigurer::disable) // HTTP Basic 인증 끄기
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(allowUris).permitAll() // 허용 리스트는 아무나 접근 가능
@@ -53,7 +59,8 @@ public class SecurityConfig {
                         .logoutUrl("/api/v1/auth/logout")
                         .logoutSuccessUrl("/api/v1/auth/logout?logout") // 임시 로그아웃 성공 주소
                         .permitAll()
-                );
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
