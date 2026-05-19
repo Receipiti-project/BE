@@ -41,7 +41,7 @@ public class Expenditure extends BaseEntity {
     private String address;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private InputType inputType;
 
     private String memo;
