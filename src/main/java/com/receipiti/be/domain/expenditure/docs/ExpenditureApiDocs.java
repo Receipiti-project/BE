@@ -1,9 +1,11 @@
 package com.receipiti.be.domain.expenditure.docs;
 
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
+import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
 import com.receipiti.be.domain.member.entity.Member;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,5 +38,13 @@ public interface ExpenditureApiDocs {
     ResponseEntity<ExpenditureDetailResponse> getExpenditureDetail(
             Member member,
             Long id
+    );
+
+    @Operation(summary = "지출 내역 수정", description = "특정 지출 내역의 정보를 부분 수정합니다.")
+    @Parameter(name = "id", description = "수정할 지출 내역의 id", example = "1")
+    ResponseEntity<ExpenditureUpdateResponse> updateExpenditure(
+            Member member,
+            Long id,
+            ExpenditureUpdateRequest request
     );
 }

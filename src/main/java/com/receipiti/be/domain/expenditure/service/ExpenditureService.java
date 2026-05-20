@@ -3,11 +3,13 @@ package com.receipiti.be.domain.expenditure.service;
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
+import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.DailyExpenditureGroup;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureElement;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
 import com.receipiti.be.domain.expenditure.entity.Expenditure;
 import com.receipiti.be.domain.expenditure.enums.Currency;
 import com.receipiti.be.domain.expenditure.enums.InputType;
@@ -131,5 +133,49 @@ public class ExpenditureService {
                 .inputType(expenditure.getInputType())
                 .createdAt(expenditure.getCreatedAt())
                 .build();
+    }
+
+    @Transactional
+    public ExpenditureUpdateResponse updateExpenditure(Member member, Long id, ExpenditureUpdateRequest request) {
+        Expenditure expenditure = expenditureRepository.findByIdAndMember(id, member)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.EXPENDITURE_NOT_FOUND));
+
+        // 카테고리 수정
+        Category category = expenditure.getCategory(); // 변경 없으면 기존 값 유지
+        if (request.getCategoryId() != null) {
+            category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
+        }
+
+        // 가게명 수정
+        Store store = expenditure.getStore();
+        if (request.getStoreName() != null && !request.getStoreName().trim().isEmpty()) {
+            store = storeRepository.findByName(request.getStoreName())
+                    .orElseGet(() -> storeRepository.save(
+                            Store.builder()
+                                    .name(request.getStoreName())
+                                    .build()
+                    ));
+        }
+
+        // 엔티티에 값 던져서 변경 감지
+        expenditure.update(
+                category,
+                store,
+                request.getAmount(),
+                request.getExpenditureDate(),
+                request.getMemo(),
+                request.getCurrency()
+        );
+
+        // 최종 수정 완료된 데이터 응답 DTO로 변환하여 반환
+        return new ExpenditureUpdateResponse(
+                expenditure.getId(),
+                expenditure.getStore().getName(),
+                expenditure.getAmount(),
+                expenditure.getExpenditureDate(),
+                expenditure.getMemo(),
+                expenditure.getCurrency()
+        );
     }
 }

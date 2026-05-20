@@ -2,9 +2,11 @@ package com.receipiti.be.domain.expenditure.controller;
 
 import com.receipiti.be.domain.expenditure.docs.ExpenditureApiDocs;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
+import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
 import com.receipiti.be.domain.expenditure.service.ExpenditureService;
 import com.receipiti.be.domain.member.entity.Member;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -59,6 +62,19 @@ public class ExpenditureController implements ExpenditureApiDocs {
 
         log.info("지출 상세 조회 요청 - 유저: {}, 지출ID: {}", member.getNickname(), id);
         ExpenditureDetailResponse response = expenditureService.getExpenditureDetail(member, id);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @PatchMapping("/{id}")
+    public ResponseEntity<ExpenditureUpdateResponse> updateExpenditure(
+            @AuthenticationPrincipal Member member,
+            @PathVariable Long id,
+            @RequestBody ExpenditureUpdateRequest request) {
+
+        log.info("지출 수정 요청 - 유저: {}, 지출ID: {}", member.getNickname(), id);
+        ExpenditureUpdateResponse response = expenditureService.updateExpenditure(member, id, request);
 
         return ResponseEntity.ok(response);
     }
