@@ -71,7 +71,7 @@ public class ExpenditureController implements ExpenditureApiDocs {
     public ResponseEntity<ExpenditureUpdateResponse> updateExpenditure(
             @AuthenticationPrincipal Member member,
             @PathVariable Long id,
-            @RequestBody ExpenditureUpdateRequest request) {
+            @RequestBody @Valid ExpenditureUpdateRequest request) {
 
         log.info("지출 수정 요청 - 유저: {}, 지출ID: {}", member.getNickname(), id);
         ExpenditureUpdateResponse response = expenditureService.updateExpenditure(member, id, request);
