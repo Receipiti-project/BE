@@ -57,4 +57,13 @@ public class Expenditure extends BaseEntity {
     private BigDecimal latitude;
 
     private BigDecimal longitude;
+
+    public void update(Category category, Store store, Long amount, LocalDateTime expenditureDate, String memo, Currency currency) {
+        this.category = category;
+        this.store = store;
+        if (amount != null) this.amount = amount;
+        if (expenditureDate != null) this.expenditureDate = expenditureDate;
+        if (memo != null) this.memo = memo;
+        if (currency != null) this.currency = currency;
+    }
 }
