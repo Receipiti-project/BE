@@ -142,7 +142,7 @@ public class ExpenditureService {
 
         // 카테고리 수정
         Category category = expenditure.getCategory(); // 변경 없으면 기존 값 유지
-        if (request.getCategoryId() != null) {
+        if (request.getCategoryId() != null && !request.getCategoryId().equals(category.getId())) {
             category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
         }
@@ -150,12 +150,15 @@ public class ExpenditureService {
         // 가게명 수정
         Store store = expenditure.getStore();
         if (request.getStoreName() != null && !request.getStoreName().trim().isEmpty()) {
-            store = storeRepository.findByName(request.getStoreName())
-                    .orElseGet(() -> storeRepository.save(
-                            Store.builder()
-                                    .name(request.getStoreName())
-                                    .build()
-                    ));
+            String newStoreName = request.getStoreName().trim();
+            if (!newStoreName.equals(store.getName())) { // 기존 가게명과 다를 때만 실행
+                store = storeRepository.findByName(newStoreName)
+                        .orElseGet(() -> storeRepository.save(
+                                Store.builder()
+                                        .name(newStoreName)
+                                        .build()
+                        ));
+            }
         }
 
         // 엔티티에 값 던져서 변경 감지
