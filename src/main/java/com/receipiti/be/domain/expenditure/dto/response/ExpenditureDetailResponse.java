@@ -19,4 +19,6 @@ public class ExpenditureDetailResponse {
     private Currency currency;
     private InputType inputType; // 수동 입력 or 영수증 인식
     private LocalDateTime createdAt; // 등록일
+    private String address;
+    private String imageUrl;
 }

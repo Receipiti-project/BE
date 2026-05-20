@@ -112,8 +112,8 @@ public class ExpenditureService {
                 .sorted((g1, g2) -> g2.getDate().compareTo(g1.getDate())) // 최근 날짜가 맨 위로 오게 정렬
                 .collect(Collectors.toList());
         return new ExpenditureListResponse(totalAmount, dailyExpenditures);
-
     }
+
     @Transactional(readOnly = true)
     public ExpenditureDetailResponse getExpenditureDetail(Member member, Long expenditureId) {
         Expenditure expenditure = expenditureRepository.findByIdAndMember(expenditureId, member)

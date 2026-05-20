@@ -35,6 +35,6 @@ public interface ExpenditureApiDocs {
     @Parameter(name = "id", description = "조회할 지출 내역의 id", example = "1")
     ResponseEntity<ExpenditureDetailResponse> getExpenditureDetail(
             Member member,
-            Long expenditureId
+            Long id
     );
 }
