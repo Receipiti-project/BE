@@ -59,8 +59,8 @@ public class Expenditure extends BaseEntity {
     private BigDecimal longitude;
 
     public void update(Category category, Store store, Long amount, LocalDateTime expenditureDate, String memo, Currency currency) {
-        if (category != null) this.category = category;
-        if (store != null) this.store = store;
+        this.category = category;
+        this.store = store;
         if (amount != null) this.amount = amount;
         if (expenditureDate != null) this.expenditureDate = expenditureDate;
         if (memo != null) this.memo = memo;
