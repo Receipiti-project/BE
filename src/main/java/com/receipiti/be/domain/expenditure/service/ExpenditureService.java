@@ -181,4 +181,12 @@ public class ExpenditureService {
                 expenditure.getCurrency()
         );
     }
+
+    @Transactional
+    public void deleteExpenditure(Member member, Long id) {
+        Expenditure expenditure = expenditureRepository.findByIdAndMember(id, member)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.EXPENDITURE_NOT_FOUND));
+
+        expenditureRepository.delete(expenditure);
+    }
 }
