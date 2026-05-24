@@ -184,8 +184,7 @@ public class ExpenditureService {
 
     @Transactional
     public void deleteExpenditure(Member member, Long id) {
-        Expenditure expenditure = expenditureRepository.findById(id)
-                .filter(e -> e.getMember().equals(member))
+        Expenditure expenditure = expenditureRepository.findByIdAndMember(id, member)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.EXPENDITURE_NOT_FOUND));
 
         expenditureRepository.delete(expenditure);
