@@ -83,13 +83,13 @@ public class ExpenditureController implements ExpenditureApiDocs {
 
     @Override
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteExpenditure(
+    public ResponseEntity<String> deleteExpenditure(
             @AuthenticationPrincipal Member member,
             @PathVariable Long id) {
 
         log.info("지출 삭제 요청 - 유저: {}, 지출ID: {}", member.getNickname(), id);
         expenditureService.deleteExpenditure(member, id);
 
-        return ResponseEntity.ok(ApiResponse.onSuccess("지출 내역 삭제가 완료되었습니다."));
+        return ResponseEntity.ok("지출 내역 삭제가 완료되었습니다.");
     }
 }

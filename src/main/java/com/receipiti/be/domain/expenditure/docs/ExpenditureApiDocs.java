@@ -51,7 +51,7 @@ public interface ExpenditureApiDocs {
 
     @Operation(summary = "지출 내역 삭제", description = "특정 지출 내역을 삭제합니다.")
     @Parameter(name = "id", description = "삭제할 지출 내역의 id", example = "1")
-    ResponseEntity<ApiResponse<String>> deleteExpenditure(
+    ResponseEntity<String> deleteExpenditure(
             Member member,
             Long id
     );
