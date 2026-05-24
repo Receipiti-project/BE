@@ -7,6 +7,7 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailRespons
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
 import com.receipiti.be.domain.member.entity.Member;
+import com.receipiti.be.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -46,5 +47,12 @@ public interface ExpenditureApiDocs {
             Member member,
             Long id,
             ExpenditureUpdateRequest request
+    );
+
+    @Operation(summary = "지출 내역 삭제", description = "특정 지출 내역을 삭제합니다.")
+    @Parameter(name = "id", description = "삭제할 지출 내역의 id", example = "1")
+    ResponseEntity<String> deleteExpenditure(
+            Member member,
+            Long id
     );
 }
