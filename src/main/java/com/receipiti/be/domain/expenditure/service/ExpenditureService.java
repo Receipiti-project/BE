@@ -10,6 +10,7 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailRespons
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureElement;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
 import com.receipiti.be.domain.expenditure.entity.Expenditure;
 import com.receipiti.be.domain.expenditure.enums.Currency;
 import com.receipiti.be.domain.expenditure.enums.InputType;
@@ -26,8 +27,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +40,8 @@ public class ExpenditureService {
     private final ExpenditureRepository expenditureRepository;
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
+
+    private final NaverOcrHandler naverOcrHandler;
 
     public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request){
 
@@ -188,5 +193,9 @@ public class ExpenditureService {
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.EXPENDITURE_NOT_FOUND));
 
         expenditureRepository.delete(expenditure);
+    }
+
+    public OcrResponse extractTextFromReceipt(MultipartFile file) {
+        return naverOcrHandler.executeOcr(file);
     }
 }
