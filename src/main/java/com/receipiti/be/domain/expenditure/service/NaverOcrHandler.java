@@ -3,6 +3,11 @@ package com.receipiti.be.domain.expenditure.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
+import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
+import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -25,6 +30,9 @@ import java.util.regex.Pattern;
 @Slf4j
 public class NaverOcrHandler {
 
+    private final RestTemplate restTemplate = new  RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Value("${naver.ocr.url}")
     private String naverOcrUrl;
 
@@ -37,12 +45,17 @@ public class NaverOcrHandler {
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
             headers.set("X-OCR-SECRET", naverOcrSecret);
 
-            String jsonMessage = String.format(
-                    "{\"images\":[{\"format\":\"%s\",\"name\":\"receipt\"}],\"requestId\":\"%s\",\"timestamp\":%d,\"version\":\"V2\"}",
-                    getFileExtension(file.getOriginalFilename()),
-                    UUID.randomUUID().toString(),
-                    System.currentTimeMillis()
-            );
+            Map<String, Object> messageMap = new HashMap<>();
+            messageMap.put("version", "V2");
+            messageMap.put("requestId", UUID.randomUUID().toString());
+            messageMap.put("timestamp", System.currentTimeMillis());
+
+            Map<String, String> imageMap = new HashMap<>();
+            imageMap.put("format", getFileExtension(file.getOriginalFilename()));
+            imageMap.put("name", "receipt");
+            messageMap.put("images", List.of(imageMap));
+
+            String jsonMessage = objectMapper.writeValueAsString(messageMap);
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("message", jsonMessage);
@@ -56,14 +69,13 @@ public class NaverOcrHandler {
             body.add("file", fileResource);
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            RestTemplate restTemplate = new RestTemplate();
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(naverOcrUrl, requestEntity, String.class);
 
             return parseOcrResponse(responseEntity.getBody());
 
         } catch (Exception e) {
             log.error("Naver OCR API 호출 실패: ", e);
-            throw new RuntimeException("영수증 OCR 처리 중 오류가 발생했습니다: " + e.getMessage());
+            throw new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -74,7 +86,6 @@ public class NaverOcrHandler {
 
     private OcrResponse parseOcrResponse(String jsonResponseBody) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
             JsonNode root = objectMapper.readTree(jsonResponseBody);
             JsonNode fields = root.path("images").get(0).path("fields");
 
@@ -140,9 +151,9 @@ public class NaverOcrHandler {
             if (totalPrice == 0L) {
                 for (JsonNode field : fields) {
                     String text = field.path("inferText").asText("").replaceAll("[^0-9]", "");
-                    if (!text.isEmpty() && text.length() >= 4 && text.length() <= 7) {
+                    if (!text.isEmpty() && text.length() >= 4 && text.length() <= 6) {
                         Long tempPrice = Long.parseLong(text);
-                        if (tempPrice > totalPrice && tempPrice != 191207L) {
+                        if (tempPrice > totalPrice && tempPrice != 500000L) {
                             totalPrice = tempPrice;
                         }
                     }
@@ -157,11 +168,7 @@ public class NaverOcrHandler {
 
         } catch (Exception e) {
             log.error("OCR 결과 파싱 실패: ", e);
-            return OcrResponse.builder()
-                    .storeName("영수증 분석 실패")
-                    .amount(0L)
-                    .paymentDate(LocalDateTime.now())
-                    .build();
+            throw new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 }
