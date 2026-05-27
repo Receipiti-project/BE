@@ -6,6 +6,7 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateRespons
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,5 +55,11 @@ public interface ExpenditureApiDocs {
     ResponseEntity<String> deleteExpenditure(
             Member member,
             Long id
+    );
+
+    @Operation(summary = "영수증 OCR 텍스트 추출", description = "영수증 사진을 받아 상호명, 금액, 날짜를 추출합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(description = "추출된 영수증 가계부 데이터를 반환합니다.")
+    ResponseEntity<OcrResponse> extractTextFromReceipt(
+            org.springframework.web.multipart.MultipartFile file
     );
 }

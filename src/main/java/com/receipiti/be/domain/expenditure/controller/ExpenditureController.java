@@ -7,13 +7,14 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateRespons
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
 import com.receipiti.be.domain.expenditure.service.ExpenditureService;
 import com.receipiti.be.domain.member.entity.Member;
-import com.receipiti.be.global.apiPayload.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -24,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -91,5 +94,14 @@ public class ExpenditureController implements ExpenditureApiDocs {
         expenditureService.deleteExpenditure(member, id);
 
         return ResponseEntity.ok("지출 내역 삭제가 완료되었습니다.");
+    }
+
+    @Override
+    @PostMapping(value = "/ocr", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OcrResponse> extractTextFromReceipt(
+            @RequestParam("file") MultipartFile file
+    ) {
+        OcrResponse response = expenditureService.extractTextFromReceipt(file);
+        return ResponseEntity.ok(response);
     }
 }
