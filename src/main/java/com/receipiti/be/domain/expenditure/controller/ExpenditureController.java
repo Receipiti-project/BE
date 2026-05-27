@@ -32,7 +32,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/v1/expenditures")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class ExpenditureController implements ExpenditureApiDocs {
     private final ExpenditureService expenditureService;
 
