@@ -11,7 +11,8 @@ public enum CategoryType {
     SHOPPING("쇼핑"),
     CULTURE("문화/여가"),
     HEALTH("건강/의료"),
-    ETC("기타");
+    ETC("기타"),
+    CUSTOM("커스텀");
 
     private final String description;
 
