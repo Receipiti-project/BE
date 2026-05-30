@@ -31,6 +31,9 @@ public class CategoryService {
 
     // 커스텀 카테고리 생성
     public CategoryResponse createCustomCategory(Member member, CategoryRequest request) {
+        if (member == null) {
+            throw new IllegalArgumentException("커스텀 카테고리를 생성하려면 회원 정보가 필수적입니다.");
+        }
         Category customCategory = Category.builder()
                 .member(member)
                 .name(request.getName())

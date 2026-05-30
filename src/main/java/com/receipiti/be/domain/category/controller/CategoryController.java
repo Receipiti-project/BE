@@ -35,7 +35,7 @@ public class CategoryController implements CategoryApiDocs {
     @PostMapping
     public ResponseEntity<CategoryResponse> createCustomCategory(
             @AuthenticationPrincipal Member member,
-            @RequestBody CategoryRequest request
+            @jakarta.validation.Valid @RequestBody CategoryRequest request
     ){
         CategoryResponse response = categoryService.createCustomCategory(member, request);
         return ResponseEntity.ok(response);

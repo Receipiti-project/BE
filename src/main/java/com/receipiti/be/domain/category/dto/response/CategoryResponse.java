@@ -1,6 +1,7 @@
 package com.receipiti.be.domain.category.dto.response;
 
 import com.receipiti.be.domain.category.entity.Category;
+import com.receipiti.be.domain.category.enums.CategoryType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,7 +20,7 @@ public class CategoryResponse {
                 .categoryId(category.getId())
                 .name(category.getName())
                 .categoryType(category.getCategoryType().name())
-                .isCustom(category.getMember() != null) // member가 있으면 내가 만든 커스텀
+                .isCustom(category.getCategoryType() == CategoryType.CUSTOM)
                 .build();
     }
 }
