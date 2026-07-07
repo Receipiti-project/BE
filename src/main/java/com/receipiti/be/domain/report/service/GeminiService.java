@@ -20,7 +20,6 @@ public class GeminiService {
     public ReportResponse generateExpenditureReport(String targetMonth, String expenditureData) {
         // 구글 AI 스튜디오 표준 API 최신 엔드포인트 주소
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
-        System.out.println("Gemini API Key prefix = " + apiKey.substring(0, 10));
 
         String prompt = String.format(
                 "너는 유저의 가계부 소비 내역을 분석해주는 전문 자산 관리사야. [%s]의 소비 내역 데이터를 바탕으로 반드시 아래 5가지 항목을 모두 포함해서 구체적인 리포트를 작성해줘.\n\n" +
