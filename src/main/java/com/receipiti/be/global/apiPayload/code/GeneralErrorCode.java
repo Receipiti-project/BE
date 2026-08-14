@@ -11,6 +11,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON_400", "잘못된 요청입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH_401", "인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH_403", "요청이 거부되었습니다."),
+    KAKAO_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_KAKAO_401", "카카오 로그인에 실패했습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_404", "요청한 리소스를 찾을 수 없습니다."),
     EXPENDITURE_NOT_FOUND(HttpStatus.NOT_FOUND, "EXPENDITURE_404", "존재하지 않거나 접근 권한이 없는 지출 내역입니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CATEGORY_404", "존재하지 않는 카테고리입니다.");
