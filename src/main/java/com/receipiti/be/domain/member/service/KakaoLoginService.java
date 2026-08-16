@@ -17,6 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -29,6 +32,7 @@ public class KakaoLoginService {
 
     private final MemberRepository memberRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RestClient kakaoRestClient;
 
     @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String clientId;
@@ -43,21 +47,29 @@ public class KakaoLoginService {
             KakaoUserResponse kakaoUser = requestUserInfo(kakaoAccessToken);
             validateUserInfo(kakaoUser);
 
-            Member member = memberRepository.findBySocialIdAndSocialType(kakaoUser.id(), SocialType.KAKAO)
-                    .map(existingMember -> existingMember.update(
-                            kakaoUser.kakaoAccount().profile().nickname(),
-                            kakaoUser.kakaoAccount().email()))
-                    .orElseGet(() -> memberRepository.save(Member.builder()
-                            .socialId(kakaoUser.id())
-                            .socialType(SocialType.KAKAO)
-                            .nickname(kakaoUser.kakaoAccount().profile().nickname())
-                            .email(kakaoUser.kakaoAccount().email())
-                            .build()));
+            Member member = saveOrUpdateMember(kakaoUser);
 
             return new LoginResponse(jwtTokenProvider.createToken(member.getSocialId().toString()));
-        } catch (RestClientException exception) {
+        } catch (HttpClientErrorException exception) {
             throw new GeneralException(GeneralErrorCode.KAKAO_LOGIN_FAILED);
+        } catch (HttpServerErrorException exception) {
+            throw new GeneralException(GeneralErrorCode.KAKAO_SERVER_ERROR);
+        } catch (ResourceAccessException exception) {
+            throw new GeneralException(GeneralErrorCode.KAKAO_SERVICE_UNAVAILABLE);
+        } catch (RestClientException exception) {
+            throw new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private Member saveOrUpdateMember(KakaoUserResponse kakaoUser) {
+        memberRepository.upsertSocialMember(
+                kakaoUser.id(),
+                SocialType.KAKAO.name(),
+                kakaoUser.kakaoAccount().profile().nickname(),
+                kakaoUser.kakaoAccount().email());
+
+        return memberRepository.findBySocialIdAndSocialType(kakaoUser.id(), SocialType.KAKAO)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR));
     }
 
     private String requestAccessToken(KakaoLoginRequest request) {
@@ -68,7 +80,7 @@ public class KakaoLoginService {
         form.add("redirect_uri", request.redirectUri());
         form.add("code", request.authorizationCode());
 
-        KakaoTokenResponse response = RestClient.create()
+        KakaoTokenResponse response = kakaoRestClient
                 .post()
                 .uri(KAKAO_TOKEN_URI)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -83,7 +95,7 @@ public class KakaoLoginService {
     }
 
     private KakaoUserResponse requestUserInfo(String accessToken) {
-        KakaoUserResponse response = RestClient.create()
+        KakaoUserResponse response = kakaoRestClient
                 .get()
                 .uri(KAKAO_USER_INFO_URI)
                 .headers(headers -> headers.setBearerAuth(accessToken))
