@@ -6,7 +6,13 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "member")
+@Table(
+        name = "member",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_member_social_id_social_type",
+                columnNames = {"social_id", "social_type"}
+        )
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -18,11 +24,11 @@ public class Member extends BaseEntity {
     @Column(name = "member_id")
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "social_id", nullable = false)
     private Long socialId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "social_type", nullable = false)
     private SocialType socialType;
 
     @Column(nullable = false, length = 50)

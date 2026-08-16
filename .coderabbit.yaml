@@ -1,0 +1,8 @@
+language: ko-KR
+
+reviews:
+  auto_review:
+    enabled: true
+    base_branches:
+      - develop
+      - main
