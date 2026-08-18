@@ -43,8 +43,7 @@ public class Category extends BaseEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
-    public void update(CategoryType type, String name) {
-        this.categoryType = type;
+    public void updateName(String name) {
         this.name = name;
     }
 }

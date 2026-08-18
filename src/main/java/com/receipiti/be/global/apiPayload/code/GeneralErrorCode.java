@@ -16,7 +16,9 @@ public enum GeneralErrorCode implements BaseErrorCode {
     KAKAO_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_KAKAO_503", "카카오 인증 서버에 연결할 수 없습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_404", "요청한 리소스를 찾을 수 없습니다."),
     EXPENDITURE_NOT_FOUND(HttpStatus.NOT_FOUND, "EXPENDITURE_404", "존재하지 않거나 접근 권한이 없는 지출 내역입니다."),
-    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CATEGORY_404", "존재하지 않는 카테고리입니다.");
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CATEGORY_404", "존재하지 않거나 접근 권한이 없는 카테고리입니다."),
+    CATEGORY_MODIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "CATEGORY_403", "기본 카테고리는 수정하거나 삭제할 수 없습니다."),
+    CATEGORY_IN_USE(HttpStatus.CONFLICT, "CATEGORY_409", "사용 중인 카테고리는 삭제할 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
