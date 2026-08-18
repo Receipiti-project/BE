@@ -110,4 +110,21 @@ class CategoryServiceTest {
                 .isEqualTo(GeneralErrorCode.CATEGORY_MODIFICATION_FORBIDDEN);
     }
 
+    @Test
+    void 회원이_없는_CUSTOM_카테고리_규칙은_수정할_수_없다() {
+        Category invalidGlobalCustomCategory = Category.builder()
+                .id(7L)
+                .categoryType(CategoryType.CUSTOM)
+                .name("커스텀")
+                .build();
+        when(categoryRepository.findAccessibleCategoryForUpdate(7L, member))
+                .thenReturn(Optional.of(invalidGlobalCustomCategory));
+
+        assertThatThrownBy(() -> categoryService.updateCategoryRule(
+                member, 7L, new CategoryRequest("변경된 커스텀")))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.CATEGORY_MODIFICATION_FORBIDDEN);
+    }
+
 }

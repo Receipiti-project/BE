@@ -72,7 +72,7 @@ public class CategoryService {
         Category category = categoryRepository.findAccessibleCategoryForUpdate(categoryId, member)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
 
-        if (category.getCategoryType() != CategoryType.CUSTOM) {
+        if (category.getMember() == null || category.getCategoryType() != CategoryType.CUSTOM) {
             throw new GeneralException(GeneralErrorCode.CATEGORY_MODIFICATION_FORBIDDEN);
         }
 

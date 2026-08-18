@@ -19,6 +19,7 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         if (categoryRepository.countByMemberIsNull() == 0) {
             Arrays.stream(CategoryType.values())
+                    .filter(type -> type != CategoryType.CUSTOM)
                     .forEach(type -> categoryRepository.save(
                             Category.builder()
                                     .categoryType(type)
