@@ -20,6 +20,15 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findByMemberIsNullOrMember(Member member);
 
+    @Query("""
+            SELECT c FROM Category c
+            WHERE c.id = :id
+              AND (c.member IS NULL OR c.member = :member)
+            """)
+    Optional<Category> findAccessibleCategory(
+            @Param("id") Long id,
+            @Param("member") Member member);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT c FROM Category c

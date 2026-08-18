@@ -45,7 +45,7 @@ public class ExpenditureService {
 
     public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request){
 
-        Category category = categoryRepository.findById(request.getCategoryId())
+        Category category = categoryRepository.findAccessibleCategory(request.getCategoryId(), member)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
 
         Store store = storeRepository.findByName(request.getStoreName())
@@ -148,7 +148,7 @@ public class ExpenditureService {
         // 카테고리 수정
         Category category = expenditure.getCategory(); // 변경 없으면 기존 값 유지
         if (request.getCategoryId() != null && !request.getCategoryId().equals(category.getId())) {
-            category = categoryRepository.findById(request.getCategoryId())
+            category = categoryRepository.findAccessibleCategory(request.getCategoryId(), member)
                     .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
         }
 
