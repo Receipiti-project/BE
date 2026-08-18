@@ -2,6 +2,8 @@ package com.receipiti.be.domain.expenditure.service;
 
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
+import com.receipiti.be.domain.categoryhistory.enums.CategorySelectionSource;
+import com.receipiti.be.domain.categoryhistory.service.CategorySelectionHistoryService;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.DailyExpenditureGroup;
@@ -40,6 +42,7 @@ public class ExpenditureService {
     private final ExpenditureRepository expenditureRepository;
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
+    private final CategorySelectionHistoryService categorySelectionHistoryService;
 
     private final NaverOcrHandler naverOcrHandler;
 
@@ -52,8 +55,10 @@ public class ExpenditureService {
                 .orElseGet(() -> storeRepository.save(
                         Store.builder()
                                 .name(request.getStoreName())
+                                .bizCategory(request.getBusinessCategory())
                                 .build()
                 ));
+        store.fillBusinessCategoryIfAbsent(request.getBusinessCategory());
 
         Expenditure expenditure = Expenditure.builder()
                 .member(member)
@@ -67,6 +72,12 @@ public class ExpenditureService {
                 .build();
 
        Expenditure saved = expenditureRepository.save(expenditure);
+       categorySelectionHistoryService.recordSelection(
+               member,
+               category,
+               store,
+               CategorySelectionSource.CREATE
+       );
        return new ExpenditureCreateResponse(
                saved.getId(),
                saved.getStore().getName(),
@@ -147,9 +158,11 @@ public class ExpenditureService {
 
         // 카테고리 수정
         Category category = expenditure.getCategory(); // 변경 없으면 기존 값 유지
+        boolean categoryChanged = false;
         if (request.getCategoryId() != null && !request.getCategoryId().equals(category.getId())) {
             category = categoryRepository.findAccessibleCategory(request.getCategoryId(), member)
                     .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
+            categoryChanged = true;
         }
 
         // 가게명 수정
@@ -175,6 +188,15 @@ public class ExpenditureService {
                 request.getMemo(),
                 request.getCurrency()
         );
+
+        if (categoryChanged) {
+            categorySelectionHistoryService.recordSelection(
+                    member,
+                    category,
+                    store,
+                    CategorySelectionSource.UPDATE
+            );
+        }
 
         // 최종 수정 완료된 데이터 응답 DTO로 변환하여 반환
         return new ExpenditureUpdateResponse(

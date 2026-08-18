@@ -32,11 +32,17 @@ public class Store extends BaseEntity {
     @Column(name="road_address")
     private String address;
 
-    @Column(name="biz_category")
+    @Column(name="biz_category", length = 100)
     private String bizCategory;
 
     private BigDecimal latitude;
 
     private BigDecimal longitude;
+
+    public void fillBusinessCategoryIfAbsent(String businessCategory) {
+        if (this.bizCategory == null && businessCategory != null && !businessCategory.isBlank()) {
+            this.bizCategory = businessCategory.trim();
+        }
+    }
 
 }
