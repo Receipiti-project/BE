@@ -52,7 +52,7 @@ class CategoryServiceTest {
     @Test
     void 본인의_커스텀_카테고리_규칙을_수정한다() {
         CategoryRequest request = new CategoryRequest("새 이름");
-        when(categoryRepository.findByIdAndMember(10L, member)).thenReturn(Optional.of(customCategory));
+        when(categoryRepository.findAccessibleCategoryForUpdate(10L, member)).thenReturn(Optional.of(customCategory));
 
         CategoryResponse response = categoryService.updateCategoryRule(member, 10L, request);
 
@@ -62,7 +62,7 @@ class CategoryServiceTest {
 
     @Test
     void 사용_중인_카테고리_규칙은_삭제할_수_없다() {
-        when(categoryRepository.findByIdAndMember(10L, member)).thenReturn(Optional.of(customCategory));
+        when(categoryRepository.findAccessibleCategoryForUpdate(10L, member)).thenReturn(Optional.of(customCategory));
         when(expenditureRepository.existsByCategory(customCategory)).thenReturn(true);
 
         assertThatThrownBy(() -> categoryService.deleteCategoryRule(member, 10L))
@@ -75,7 +75,7 @@ class CategoryServiceTest {
 
     @Test
     void 본인의_사용하지_않는_카테고리_규칙을_삭제한다() {
-        when(categoryRepository.findByIdAndMember(10L, member)).thenReturn(Optional.of(customCategory));
+        when(categoryRepository.findAccessibleCategoryForUpdate(10L, member)).thenReturn(Optional.of(customCategory));
         when(expenditureRepository.existsByCategory(customCategory)).thenReturn(false);
 
         categoryService.deleteCategoryRule(member, 10L);
@@ -85,12 +85,29 @@ class CategoryServiceTest {
 
     @Test
     void 다른_사용자의_카테고리_규칙에는_접근할_수_없다() {
-        when(categoryRepository.findByIdAndMember(10L, member)).thenReturn(Optional.empty());
+        when(categoryRepository.findAccessibleCategoryForUpdate(10L, member)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> categoryService.updateCategoryRule(member, 10L, new CategoryRequest("새 이름")))
                 .isInstanceOf(GeneralException.class)
                 .extracting(exception -> ((GeneralException) exception).getCode())
                 .isEqualTo(GeneralErrorCode.CATEGORY_NOT_FOUND);
+    }
+
+    @Test
+    void 기본_카테고리_규칙은_수정할_수_없다() {
+        Category defaultCategory = Category.builder()
+                .id(1L)
+                .categoryType(CategoryType.FOOD)
+                .name("식비")
+                .build();
+        when(categoryRepository.findAccessibleCategoryForUpdate(1L, member))
+                .thenReturn(Optional.of(defaultCategory));
+
+        assertThatThrownBy(() -> categoryService.updateCategoryRule(
+                member, 1L, new CategoryRequest("변경된 식비")))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.CATEGORY_MODIFICATION_FORBIDDEN);
     }
 
 }

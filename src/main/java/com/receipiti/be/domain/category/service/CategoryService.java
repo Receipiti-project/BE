@@ -69,7 +69,7 @@ public class CategoryService {
             throw new GeneralException(GeneralErrorCode.UNAUTHORIZED);
         }
 
-        Category category = categoryRepository.findByIdAndMember(categoryId, member)
+        Category category = categoryRepository.findAccessibleCategoryForUpdate(categoryId, member)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
 
         if (category.getCategoryType() != CategoryType.CUSTOM) {
