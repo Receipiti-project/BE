@@ -5,7 +5,10 @@ import com.receipiti.be.domain.category.dto.response.CategoryResponse;
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.enums.CategoryType;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
+import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
 import com.receipiti.be.domain.member.entity.Member;
+import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
+import com.receipiti.be.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final ExpenditureRepository expenditureRepository;
 
     // 전체 카테고리 목록 조회 (공통 + 커스텀)
     @Transactional(readOnly = true)
@@ -42,5 +46,36 @@ public class CategoryService {
 
         Category saved = categoryRepository.save(customCategory);
         return CategoryResponse.from(saved);
+    }
+
+    public CategoryResponse updateCategoryRule(Member member, Long categoryId, CategoryRequest request) {
+        Category category = getOwnedCustomCategory(member, categoryId);
+        category.updateName(request.getName());
+        return CategoryResponse.from(category);
+    }
+
+    public void deleteCategoryRule(Member member, Long categoryId) {
+        Category category = getOwnedCustomCategory(member, categoryId);
+
+        if (expenditureRepository.existsByCategory(category)) {
+            throw new GeneralException(GeneralErrorCode.CATEGORY_IN_USE);
+        }
+
+        categoryRepository.delete(category);
+    }
+
+    private Category getOwnedCustomCategory(Member member, Long categoryId) {
+        if (member == null) {
+            throw new GeneralException(GeneralErrorCode.UNAUTHORIZED);
+        }
+
+        Category category = categoryRepository.findByIdAndMember(categoryId, member)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
+
+        if (category.getCategoryType() != CategoryType.CUSTOM) {
+            throw new GeneralException(GeneralErrorCode.CATEGORY_MODIFICATION_FORBIDDEN);
+        }
+
+        return category;
     }
 }

@@ -1,6 +1,7 @@
 package com.receipiti.be.domain.expenditure.repository;
 
 import com.receipiti.be.domain.expenditure.entity.Expenditure;
+import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.member.entity.Member;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,6 +11,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ExpenditureRepository extends JpaRepository<Expenditure, Long> {
+    boolean existsByCategory(Category category);
+
     @Query("SELECT e FROM Expenditure e " +
             "JOIN FETCH e.category " +
             "JOIN FETCH e.store " +
