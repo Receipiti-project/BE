@@ -1,6 +1,7 @@
 package com.receipiti.be.domain.category.repository;
 
 import com.receipiti.be.domain.category.entity.Category;
+import com.receipiti.be.domain.category.enums.CategoryType;
 import com.receipiti.be.domain.member.entity.Member;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -11,7 +12,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
-    long countByMemberIsNull();
+    boolean existsByMemberIsNullAndCategoryType(CategoryType categoryType);
+
+    Optional<Category> findFirstByMemberIsNullAndCategoryType(CategoryType categoryType);
+
+    List<Category> findAllByMemberIsNullAndCategoryType(CategoryType categoryType);
 
     List<Category> findByMemberIsNullOrMember(Member member);
 
