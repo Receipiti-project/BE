@@ -162,6 +162,26 @@ class PersonalizedCategoryServiceTest {
         assertThat(recommendation).isEmpty();
     }
 
+    @Test
+    void 저장되지_않은_신규_가맹점은_동일_가맹점_조회를_건너뛴다() {
+        Store newStore = Store.builder()
+                .name("스타벅스 신규점")
+                .bizCategory("카페")
+                .build();
+        when(merchantNameNormalizer.normalizeBrandName(newStore.getName())).thenReturn("스타벅스");
+        when(categorySelectionHistoryRepository
+                .findAllByMemberAndNormalizedBrandNameOrderByCreatedAtDesc(member, "스타벅스"))
+                .thenReturn(List.of(history(cafe, LocalDateTime.now().minusDays(10))));
+
+        CategoryRecommendation recommendation = personalizedCategoryService
+                .recommend(member, newStore)
+                .orElseThrow();
+
+        assertThat(recommendation.reason()).isEqualTo(RecommendationReason.SAME_BRAND);
+        verify(categorySelectionHistoryRepository, never())
+                .findAllByMemberAndStoreOrderByCreatedAtDesc(member, newStore);
+    }
+
     private CategorySelectionHistory history(Category category, LocalDateTime selectedAt) {
         CategorySelectionHistory history = CategorySelectionHistory.builder()
                 .member(member)

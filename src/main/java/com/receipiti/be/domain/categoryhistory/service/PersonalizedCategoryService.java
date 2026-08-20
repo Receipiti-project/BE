@@ -34,7 +34,15 @@ public class PersonalizedCategoryService {
     private final MerchantNameNormalizer merchantNameNormalizer;
 
     public Optional<CategoryRecommendation> recommend(Member member, Store store) {
-        RecommendationCandidates candidates = findCandidates(member, store);
+        return recommend(member, store, store.getBizCategory());
+    }
+
+    public Optional<CategoryRecommendation> recommend(
+            Member member,
+            Store store,
+            String businessCategory
+    ) {
+        RecommendationCandidates candidates = findCandidates(member, store, businessCategory);
         if (candidates.histories().isEmpty()) {
             return Optional.empty();
         }
@@ -42,15 +50,21 @@ public class PersonalizedCategoryService {
         return Optional.of(calculateRecommendation(candidates));
     }
 
-    private RecommendationCandidates findCandidates(Member member, Store store) {
-        List<CategorySelectionHistory> sameStoreHistories = categorySelectionHistoryRepository
-                .findAllByMemberAndStoreOrderByCreatedAtDesc(member, store);
-        if (!sameStoreHistories.isEmpty()) {
-            return new RecommendationCandidates(
-                    sameStoreHistories,
-                    SAME_STORE_SCORE,
-                    RecommendationReason.SAME_STORE
-            );
+    private RecommendationCandidates findCandidates(
+            Member member,
+            Store store,
+            String businessCategory
+    ) {
+        if (store.getId() != null) {
+            List<CategorySelectionHistory> sameStoreHistories = categorySelectionHistoryRepository
+                    .findAllByMemberAndStoreOrderByCreatedAtDesc(member, store);
+            if (!sameStoreHistories.isEmpty()) {
+                return new RecommendationCandidates(
+                        sameStoreHistories,
+                        SAME_STORE_SCORE,
+                        RecommendationReason.SAME_STORE
+                );
+            }
         }
 
         String normalizedBrandName = merchantNameNormalizer.normalizeBrandName(store.getName());
@@ -66,11 +80,11 @@ public class PersonalizedCategoryService {
             }
         }
 
-        if (store.getBizCategory() != null && !store.getBizCategory().isBlank()) {
+        if (businessCategory != null && !businessCategory.isBlank()) {
             List<CategorySelectionHistory> sameBusinessHistories = categorySelectionHistoryRepository
                     .findAllByMemberAndBusinessCategoryOrderByCreatedAtDesc(
                             member,
-                            store.getBizCategory()
+                            businessCategory
                     );
             if (!sameBusinessHistories.isEmpty()) {
                 return new RecommendationCandidates(

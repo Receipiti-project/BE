@@ -5,6 +5,7 @@ import com.receipiti.be.domain.category.dto.response.CategoryResponse;
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.enums.CategoryType;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
+import com.receipiti.be.domain.categoryhistory.repository.CategorySelectionHistoryRepository;
 import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
@@ -23,6 +24,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final ExpenditureRepository expenditureRepository;
+    private final CategorySelectionHistoryRepository categorySelectionHistoryRepository;
 
     // 전체 카테고리 목록 조회 (공통 + 커스텀)
     @Transactional(readOnly = true)
@@ -61,6 +63,7 @@ public class CategoryService {
             throw new GeneralException(GeneralErrorCode.CATEGORY_IN_USE);
         }
 
+        categorySelectionHistoryRepository.deleteAllByMemberAndCategory(member, category);
         categoryRepository.delete(category);
     }
 

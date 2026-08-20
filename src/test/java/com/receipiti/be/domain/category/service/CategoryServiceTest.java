@@ -11,6 +11,7 @@ import com.receipiti.be.domain.category.dto.response.CategoryResponse;
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.enums.CategoryType;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
+import com.receipiti.be.domain.categoryhistory.repository.CategorySelectionHistoryRepository;
 import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
@@ -31,6 +32,9 @@ class CategoryServiceTest {
 
     @Mock
     private ExpenditureRepository expenditureRepository;
+
+    @Mock
+    private CategorySelectionHistoryRepository categorySelectionHistoryRepository;
 
     @InjectMocks
     private CategoryService categoryService;
@@ -80,6 +84,7 @@ class CategoryServiceTest {
 
         categoryService.deleteCategoryRule(member, 10L);
 
+        verify(categorySelectionHistoryRepository).deleteAllByMemberAndCategory(member, customCategory);
         verify(categoryRepository).delete(customCategory);
     }
 
