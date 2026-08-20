@@ -2,8 +2,11 @@ package com.receipiti.be.domain.expenditure.service;
 
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
+import com.receipiti.be.domain.categoryhistory.dto.CategoryRecommendation;
 import com.receipiti.be.domain.categoryhistory.enums.CategorySelectionSource;
+import com.receipiti.be.domain.categoryhistory.enums.RecommendationReason;
 import com.receipiti.be.domain.categoryhistory.service.CategorySelectionHistoryService;
+import com.receipiti.be.domain.categoryhistory.service.PersonalizedCategoryService;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.DailyExpenditureGroup;
@@ -15,6 +18,7 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateRespons
 import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
 import com.receipiti.be.domain.expenditure.entity.Expenditure;
 import com.receipiti.be.domain.expenditure.enums.Currency;
+import com.receipiti.be.domain.expenditure.enums.CategoryClassificationType;
 import com.receipiti.be.domain.expenditure.enums.InputType;
 import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
 import com.receipiti.be.domain.member.entity.Member;
@@ -29,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,13 +46,11 @@ public class ExpenditureService {
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
     private final CategorySelectionHistoryService categorySelectionHistoryService;
+    private final PersonalizedCategoryService personalizedCategoryService;
 
     private final NaverOcrHandler naverOcrHandler;
 
-    public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request){
-
-        Category category = categoryRepository.findAccessibleCategory(request.getCategoryId(), member)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
+    public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request) {
 
         Store store = storeRepository.findByName(request.getStoreName())
                 .orElseGet(() -> storeRepository.save(
@@ -59,6 +60,9 @@ public class ExpenditureService {
                                 .build()
                 ));
         store.fillBusinessCategoryIfAbsent(request.getBusinessCategory());
+
+        CategoryResolution categoryResolution = resolveCategory(member, store, request);
+        Category category = categoryResolution.category();
 
         Expenditure expenditure = Expenditure.builder()
                 .member(member)
@@ -71,20 +75,63 @@ public class ExpenditureService {
                 .inputType(InputType.MANUAL)
                 .build();
 
-       Expenditure saved = expenditureRepository.save(expenditure);
-       categorySelectionHistoryService.recordSelection(
-               member,
-               category,
-               store,
-               CategorySelectionSource.CREATE
-       );
-       return new ExpenditureCreateResponse(
-               saved.getId(),
-               saved.getStore().getName(),
-               saved.getAmount(),
-               saved.getExpenditureDate(),
-               saved.getMemo(),
-               saved.getCurrency());
+        Expenditure saved = expenditureRepository.save(expenditure);
+        if (categoryResolution.classificationType() == CategoryClassificationType.USER_SELECTED) {
+            categorySelectionHistoryService.recordSelection(
+                    member,
+                    category,
+                    store,
+                    CategorySelectionSource.CREATE
+            );
+        }
+        return new ExpenditureCreateResponse(
+                saved.getId(),
+                saved.getStore().getName(),
+                saved.getAmount(),
+                saved.getExpenditureDate(),
+                saved.getMemo(),
+                saved.getCurrency(),
+                category.getId(),
+                category.getName(),
+                categoryResolution.classificationType(),
+                categoryResolution.confidence(),
+                categoryResolution.recommendationReason());
+    }
+
+    private CategoryResolution resolveCategory(
+            Member member,
+            Store store,
+            ExpenditureCreateRequest request
+    ) {
+        if (request.getCategoryId() != null) {
+            Category selectedCategory = getAccessibleCategory(request.getCategoryId(), member);
+            return new CategoryResolution(
+                    selectedCategory,
+                    CategoryClassificationType.USER_SELECTED,
+                    null,
+                    null
+            );
+        }
+
+        return personalizedCategoryService.recommend(member, store)
+                .filter(CategoryRecommendation::autoApplicable)
+                .map(recommendation -> new CategoryResolution(
+                        recommendation.category(),
+                        CategoryClassificationType.PERSONALIZED_AUTO,
+                        recommendation.confidence(),
+                        recommendation.reason()
+                ))
+                .orElseGet(() -> new CategoryResolution(
+                        getAccessibleCategory(request.getDefaultCategoryId(), member),
+                        CategoryClassificationType.SYSTEM_DEFAULT,
+                        null,
+                        null
+                ));
+    }
+
+    private Category getAccessibleCategory(Long categoryId, Member member) {
+        return categoryRepository.findAccessibleCategory(categoryId, member)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
     }
 
     @Transactional(readOnly = true)
@@ -219,5 +266,13 @@ public class ExpenditureService {
 
     public OcrResponse extractTextFromReceipt(MultipartFile file) {
         return naverOcrHandler.executeOcr(file);
+    }
+
+    private record CategoryResolution(
+            Category category,
+            CategoryClassificationType classificationType,
+            Double confidence,
+            RecommendationReason recommendationReason
+    ) {
     }
 }

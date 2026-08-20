@@ -1,16 +1,22 @@
 package com.receipiti.be.domain.expenditure.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
+import com.receipiti.be.domain.categoryhistory.dto.CategoryRecommendation;
 import com.receipiti.be.domain.categoryhistory.enums.CategorySelectionSource;
+import com.receipiti.be.domain.categoryhistory.enums.RecommendationReason;
 import com.receipiti.be.domain.categoryhistory.service.CategorySelectionHistoryService;
+import com.receipiti.be.domain.categoryhistory.service.PersonalizedCategoryService;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
 import com.receipiti.be.domain.expenditure.entity.Expenditure;
+import com.receipiti.be.domain.expenditure.enums.CategoryClassificationType;
 import com.receipiti.be.domain.expenditure.enums.Currency;
 import com.receipiti.be.domain.expenditure.enums.InputType;
 import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
@@ -37,6 +43,8 @@ class ExpenditureServiceTest {
     private StoreRepository storeRepository;
     @Mock
     private CategorySelectionHistoryService categorySelectionHistoryService;
+    @Mock
+    private PersonalizedCategoryService personalizedCategoryService;
     @Mock
     private NaverOcrHandler naverOcrHandler;
     @InjectMocks
@@ -67,7 +75,7 @@ class ExpenditureServiceTest {
         when(expenditureRepository.save(org.mockito.ArgumentMatchers.any(Expenditure.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        expenditureService.createExpenditure(member, request);
+        ExpenditureCreateResponse response = expenditureService.createExpenditure(member, request);
 
         verify(categorySelectionHistoryService).recordSelection(
                 member,
@@ -75,6 +83,97 @@ class ExpenditureServiceTest {
                 store,
                 CategorySelectionSource.CREATE
         );
+        verify(personalizedCategoryService, never()).recommend(member, store);
+        assertThat(response.getClassificationType())
+                .isEqualTo(CategoryClassificationType.USER_SELECTED);
+    }
+
+    @Test
+    void 기준을_충족한_개인화_추천을_자동_적용하고_학습_이력은_저장하지_않는다() {
+        ExpenditureCreateRequest request = createAutomaticRequest();
+        Category personalizedCategory = Category.builder().id(5L).name("카페").build();
+        CategoryRecommendation recommendation = new CategoryRecommendation(
+                personalizedCategory,
+                3,
+                180.0,
+                0.75,
+                true,
+                RecommendationReason.SAME_BRAND
+        );
+        when(storeRepository.findByName(store.getName())).thenReturn(Optional.of(store));
+        when(personalizedCategoryService.recommend(member, store))
+                .thenReturn(Optional.of(recommendation));
+        when(expenditureRepository.save(org.mockito.ArgumentMatchers.any(Expenditure.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ExpenditureCreateResponse response = expenditureService.createExpenditure(member, request);
+
+        assertThat(response.getCategoryId()).isEqualTo(personalizedCategory.getId());
+        assertThat(response.getCategoryName()).isEqualTo("카페");
+        assertThat(response.getClassificationType())
+                .isEqualTo(CategoryClassificationType.PERSONALIZED_AUTO);
+        assertThat(response.getConfidence()).isEqualTo(0.75);
+        assertThat(response.getRecommendationReason()).isEqualTo(RecommendationReason.SAME_BRAND);
+        verify(categoryRepository, never()).findAccessibleCategory(request.getDefaultCategoryId(), member);
+        verify(categorySelectionHistoryService, never()).recordSelection(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void 개인화_추천의_신뢰도가_부족하면_시스템_기본_카테고리를_적용한다() {
+        ExpenditureCreateRequest request = createAutomaticRequest();
+        Category defaultCategory = Category.builder().id(6L).name("식비").build();
+        CategoryRecommendation recommendation = new CategoryRecommendation(
+                category,
+                2,
+                120.0,
+                1.0,
+                false,
+                RecommendationReason.SAME_BRAND
+        );
+        when(storeRepository.findByName(store.getName())).thenReturn(Optional.of(store));
+        when(personalizedCategoryService.recommend(member, store))
+                .thenReturn(Optional.of(recommendation));
+        when(categoryRepository.findAccessibleCategory(request.getDefaultCategoryId(), member))
+                .thenReturn(Optional.of(defaultCategory));
+        when(expenditureRepository.save(org.mockito.ArgumentMatchers.any(Expenditure.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ExpenditureCreateResponse response = expenditureService.createExpenditure(member, request);
+
+        assertThat(response.getCategoryId()).isEqualTo(defaultCategory.getId());
+        assertThat(response.getClassificationType())
+                .isEqualTo(CategoryClassificationType.SYSTEM_DEFAULT);
+        assertThat(response.getConfidence()).isNull();
+        assertThat(response.getRecommendationReason()).isNull();
+        verify(categorySelectionHistoryService, never()).recordSelection(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void 개인화_이력이_없으면_시스템_기본_카테고리를_적용한다() {
+        ExpenditureCreateRequest request = createAutomaticRequest();
+        Category defaultCategory = Category.builder().id(6L).name("식비").build();
+        when(storeRepository.findByName(store.getName())).thenReturn(Optional.of(store));
+        when(personalizedCategoryService.recommend(member, store)).thenReturn(Optional.empty());
+        when(categoryRepository.findAccessibleCategory(request.getDefaultCategoryId(), member))
+                .thenReturn(Optional.of(defaultCategory));
+        when(expenditureRepository.save(org.mockito.ArgumentMatchers.any(Expenditure.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ExpenditureCreateResponse response = expenditureService.createExpenditure(member, request);
+
+        assertThat(response.getCategoryId()).isEqualTo(defaultCategory.getId());
+        assertThat(response.getClassificationType())
+                .isEqualTo(CategoryClassificationType.SYSTEM_DEFAULT);
     }
 
     @Test
@@ -127,5 +226,14 @@ class ExpenditureServiceTest {
                 .expenditureDate(LocalDateTime.of(2026, 8, 18, 12, 0))
                 .currency(Currency.KRW)
                 .build();
+    }
+
+    private ExpenditureCreateRequest createAutomaticRequest() {
+        ExpenditureCreateRequest request = new ExpenditureCreateRequest();
+        request.setDefaultCategoryId(6L);
+        request.setStoreName(store.getName());
+        request.setAmount(5_000L);
+        request.setExpenditureDate(LocalDateTime.of(2026, 8, 18, 12, 0));
+        return request;
     }
 }
