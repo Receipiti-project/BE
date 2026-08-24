@@ -23,7 +23,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     @Query("""
             SELECT c FROM Category c
             WHERE c.id = :id
-              AND (c.member IS NULL OR c.member = :member)
+              AND (
+                    (c.member IS NULL
+                     AND c.categoryType <> com.receipiti.be.domain.category.enums.CategoryType.CUSTOM)
+                    OR c.member = :member
+              )
             """)
     Optional<Category> findAccessibleCategory(
             @Param("id") Long id,
@@ -33,7 +37,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     @Query("""
             SELECT c FROM Category c
             WHERE c.id = :id
-              AND (c.member IS NULL OR c.member = :member)
+              AND (
+                    (c.member IS NULL
+                     AND c.categoryType <> com.receipiti.be.domain.category.enums.CategoryType.CUSTOM)
+                    OR c.member = :member
+              )
             """)
     Optional<Category> findAccessibleCategoryForUpdate(
             @Param("id") Long id,

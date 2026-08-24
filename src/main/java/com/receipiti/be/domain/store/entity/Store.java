@@ -40,7 +40,9 @@ public class Store extends BaseEntity {
     private BigDecimal longitude;
 
     public void fillBusinessCategoryIfAbsent(String businessCategory) {
-        if (this.bizCategory == null && businessCategory != null && !businessCategory.isBlank()) {
+        if ((this.bizCategory == null || this.bizCategory.isBlank())
+                && businessCategory != null
+                && !businessCategory.isBlank()) {
             this.bizCategory = businessCategory.trim();
         }
     }

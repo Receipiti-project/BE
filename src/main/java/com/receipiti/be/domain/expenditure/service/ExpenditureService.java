@@ -51,15 +51,17 @@ public class ExpenditureService {
     private final NaverOcrHandler naverOcrHandler;
 
     public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request) {
+        String storeName = request.getStoreName().trim();
+        String businessCategory = trimToNull(request.getBusinessCategory());
 
-        Store store = storeRepository.findByName(request.getStoreName())
+        Store store = storeRepository.findByName(storeName)
                 .orElseGet(() -> storeRepository.save(
                         Store.builder()
-                                .name(request.getStoreName())
-                                .bizCategory(request.getBusinessCategory())
+                                .name(storeName)
+                                .bizCategory(businessCategory)
                                 .build()
                 ));
-        store.fillBusinessCategoryIfAbsent(request.getBusinessCategory());
+        store.fillBusinessCategoryIfAbsent(businessCategory);
 
         CategoryResolution categoryResolution = resolveCategory(member, store, request);
         Category category = categoryResolution.category();
@@ -132,6 +134,13 @@ public class ExpenditureService {
     private Category getAccessibleCategory(Long categoryId, Member member) {
         return categoryRepository.findAccessibleCategory(categoryId, member)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.CATEGORY_NOT_FOUND));
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     @Transactional(readOnly = true)

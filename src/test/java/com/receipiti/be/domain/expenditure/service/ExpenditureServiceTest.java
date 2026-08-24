@@ -28,6 +28,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -86,6 +87,55 @@ class ExpenditureServiceTest {
         verify(personalizedCategoryService, never()).recommend(member, store);
         assertThat(response.getClassificationType())
                 .isEqualTo(CategoryClassificationType.USER_SELECTED);
+    }
+
+    @Test
+    void 가맹점명과_업종명의_공백을_정규화한_후_저장한다() {
+        ExpenditureCreateRequest request = new ExpenditureCreateRequest();
+        request.setCategoryId(category.getId());
+        request.setStoreName("  스타벅스 강남점  ");
+        request.setBusinessCategory("  카페  ");
+        request.setAmount(5_000L);
+        request.setExpenditureDate(LocalDateTime.of(2026, 8, 18, 12, 0));
+        when(categoryRepository.findAccessibleCategory(category.getId(), member))
+                .thenReturn(Optional.of(category));
+        when(storeRepository.findByName("스타벅스 강남점")).thenReturn(Optional.empty());
+        when(storeRepository.save(org.mockito.ArgumentMatchers.any(Store.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(expenditureRepository.save(org.mockito.ArgumentMatchers.any(Expenditure.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        expenditureService.createExpenditure(member, request);
+
+        ArgumentCaptor<Store> captor = ArgumentCaptor.forClass(Store.class);
+        verify(storeRepository).save(captor.capture());
+        assertThat(captor.getValue().getName()).isEqualTo("스타벅스 강남점");
+        assertThat(captor.getValue().getBizCategory()).isEqualTo("카페");
+    }
+
+    @Test
+    void 기존_업종명이_공백이면_새_업종명으로_보완한다() {
+        Store storeWithBlankBusinessCategory = Store.builder()
+                .id(3L)
+                .name("스타벅스 강남점")
+                .bizCategory("   ")
+                .build();
+        ExpenditureCreateRequest request = new ExpenditureCreateRequest();
+        request.setCategoryId(category.getId());
+        request.setStoreName(storeWithBlankBusinessCategory.getName());
+        request.setBusinessCategory("  카페  ");
+        request.setAmount(5_000L);
+        request.setExpenditureDate(LocalDateTime.of(2026, 8, 18, 12, 0));
+        when(categoryRepository.findAccessibleCategory(category.getId(), member))
+                .thenReturn(Optional.of(category));
+        when(storeRepository.findByName(storeWithBlankBusinessCategory.getName()))
+                .thenReturn(Optional.of(storeWithBlankBusinessCategory));
+        when(expenditureRepository.save(org.mockito.ArgumentMatchers.any(Expenditure.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        expenditureService.createExpenditure(member, request);
+
+        assertThat(storeWithBlankBusinessCategory.getBizCategory()).isEqualTo("카페");
     }
 
     @Test
