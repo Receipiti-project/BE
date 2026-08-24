@@ -8,7 +8,6 @@ import com.receipiti.be.domain.categoryhistory.dto.CategoryRecommendationRespons
 import com.receipiti.be.domain.categoryhistory.service.CategoryRecommendationQueryService;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.ApiResponse;
-import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +45,7 @@ public class CategoryController implements CategoryApiDocs {
     @GetMapping("/recommendation")
     public ResponseEntity<CategoryRecommendationResponse> getCategoryRecommendation(
             @AuthenticationPrincipal Member member,
-            @RequestParam @NotBlank String storeName,
+            @RequestParam String storeName,
             @RequestParam(required = false) String businessCategory
     ) {
         return ResponseEntity.ok(categoryRecommendationQueryService.getRecommendation(
@@ -60,7 +59,7 @@ public class CategoryController implements CategoryApiDocs {
     @PostMapping
     public ResponseEntity<CategoryResponse> createCustomCategory(
             @AuthenticationPrincipal Member member,
-            @jakarta.validation.Valid @RequestBody CategoryRequest request
+            @RequestBody CategoryRequest request
     ){
         CategoryResponse response = categoryService.createCustomCategory(member, request);
         return ResponseEntity.ok(response);
@@ -71,7 +70,7 @@ public class CategoryController implements CategoryApiDocs {
     public ResponseEntity<CategoryResponse> updateCategoryRule(
             @AuthenticationPrincipal Member member,
             @PathVariable Long id,
-            @jakarta.validation.Valid @RequestBody CategoryRequest request) {
+            @RequestBody CategoryRequest request) {
         return ResponseEntity.ok(categoryService.updateCategoryRule(member, id, request));
     }
 
