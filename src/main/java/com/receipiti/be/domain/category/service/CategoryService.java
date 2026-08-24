@@ -29,7 +29,7 @@ public class CategoryService {
     // 전체 카테고리 목록 조회 (공통 + 커스텀)
     @Transactional(readOnly = true)
     public List<CategoryResponse> getCategoryList(Member member) {
-        List<Category> categories = categoryRepository.findByMemberIsNullOrMember(member);
+        List<Category> categories = categoryRepository.findAccessibleCategories(member);
         return categories.stream()
                 .map(CategoryResponse::from)
                 .collect(Collectors.toList());

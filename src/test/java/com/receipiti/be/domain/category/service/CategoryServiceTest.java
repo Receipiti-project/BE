@@ -16,6 +16,7 @@ import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
 import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,23 @@ class CategoryServiceTest {
 
         assertThat(response.getName()).isEqualTo("새 이름");
         assertThat(customCategory.getName()).isEqualTo("새 이름");
+    }
+
+    @Test
+    void 접근_가능한_기본_카테고리와_본인의_커스텀_카테고리를_조회한다() {
+        Category defaultCategory = Category.builder()
+                .id(1L)
+                .categoryType(CategoryType.FOOD)
+                .name("식비")
+                .build();
+        when(categoryRepository.findAccessibleCategories(member))
+                .thenReturn(List.of(defaultCategory, customCategory));
+
+        List<CategoryResponse> response = categoryService.getCategoryList(member);
+
+        assertThat(response).extracting(CategoryResponse::getName)
+                .containsExactly("식비", "기존 이름");
+        verify(categoryRepository).findAccessibleCategories(member);
     }
 
     @Test
