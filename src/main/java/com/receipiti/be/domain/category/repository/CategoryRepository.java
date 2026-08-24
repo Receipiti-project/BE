@@ -18,13 +18,36 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findAllByMemberIsNullAndCategoryType(CategoryType categoryType);
 
-    List<Category> findByMemberIsNullOrMember(Member member);
+    @Query("""
+            SELECT c FROM Category c
+            WHERE (c.member IS NULL
+                   AND c.categoryType <> com.receipiti.be.domain.category.enums.CategoryType.CUSTOM)
+               OR c.member = :member
+            """)
+    List<Category> findAccessibleCategories(@Param("member") Member member);
+
+    @Query("""
+            SELECT c FROM Category c
+            WHERE c.id = :id
+              AND (
+                    (c.member IS NULL
+                     AND c.categoryType <> com.receipiti.be.domain.category.enums.CategoryType.CUSTOM)
+                    OR c.member = :member
+              )
+            """)
+    Optional<Category> findAccessibleCategory(
+            @Param("id") Long id,
+            @Param("member") Member member);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT c FROM Category c
             WHERE c.id = :id
-              AND (c.member IS NULL OR c.member = :member)
+              AND (
+                    (c.member IS NULL
+                     AND c.categoryType <> com.receipiti.be.domain.category.enums.CategoryType.CUSTOM)
+                    OR c.member = :member
+              )
             """)
     Optional<Category> findAccessibleCategoryForUpdate(
             @Param("id") Long id,

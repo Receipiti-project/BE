@@ -2,14 +2,17 @@ package com.receipiti.be.domain.category.docs;
 
 import com.receipiti.be.domain.category.dto.request.CategoryRequest;
 import com.receipiti.be.domain.category.dto.response.CategoryResponse;
+import com.receipiti.be.domain.categoryhistory.dto.CategoryRecommendationResponse;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
-import java.util.List;
 
 @Tag(name = "Category", description = "카테고리 관련 API")
 public interface CategoryApiDocs {
@@ -18,16 +21,25 @@ public interface CategoryApiDocs {
     ResponseEntity<List<CategoryResponse>> getCategoryList(
             @Parameter(hidden = true)Member member);
 
+    @Operation(
+            summary = "개인화 카테고리 추천 조회",
+            description = "지출을 저장하지 않고 가맹점명과 업종을 기준으로 사용자의 개인화 카테고리 추천을 조회합니다."
+    )
+    ResponseEntity<CategoryRecommendationResponse> getCategoryRecommendation(
+            @Parameter(hidden = true) Member member,
+            @Parameter(description = "가맹점명", example = "스타벅스 홍대점") @NotBlank String storeName,
+            @Parameter(description = "업종명", example = "카페") String businessCategory);
+
     @Operation(summary = "커스텀 카테고리 생성", description = "유저만의 커스텀 카테고리를 추가합니다.")
     ResponseEntity<CategoryResponse> createCustomCategory(
             @Parameter(hidden = true)Member member,
-            @RequestBody CategoryRequest request);
+            @Valid @RequestBody CategoryRequest request);
 
     @Operation(summary = "카테고리 규칙 수정", description = "로그인한 사용자가 생성한 커스텀 카테고리의 이름을 수정합니다.")
     ResponseEntity<CategoryResponse> updateCategoryRule(
             @Parameter(hidden = true) Member member,
             @Parameter(description = "수정할 카테고리 ID", example = "1") Long id,
-            @RequestBody CategoryRequest request);
+            @Valid @RequestBody CategoryRequest request);
 
     @Operation(summary = "카테고리 규칙 삭제", description = "로그인한 사용자가 생성한 커스텀 카테고리를 삭제합니다. 사용 중인 카테고리는 삭제할 수 없습니다.")
     ResponseEntity<ApiResponse<String>> deleteCategoryRule(

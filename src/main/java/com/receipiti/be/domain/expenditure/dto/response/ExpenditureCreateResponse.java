@@ -1,5 +1,7 @@
 package com.receipiti.be.domain.expenditure.dto.response;
 
+import com.receipiti.be.domain.categoryhistory.enums.RecommendationReason;
+import com.receipiti.be.domain.expenditure.enums.CategoryClassificationType;
 import com.receipiti.be.domain.expenditure.enums.Currency;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -14,4 +16,9 @@ public class ExpenditureCreateResponse {
     private LocalDateTime expenditureDate;
     private String memo;
     private Currency currency;
+    private Long categoryId;
+    private String categoryName;
+    private CategoryClassificationType classificationType;
+    private Double confidence;
+    private RecommendationReason recommendationReason;
 }

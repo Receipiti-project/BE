@@ -11,10 +11,12 @@ import com.receipiti.be.domain.category.dto.response.CategoryResponse;
 import com.receipiti.be.domain.category.entity.Category;
 import com.receipiti.be.domain.category.enums.CategoryType;
 import com.receipiti.be.domain.category.repository.CategoryRepository;
+import com.receipiti.be.domain.categoryhistory.repository.CategorySelectionHistoryRepository;
 import com.receipiti.be.domain.expenditure.repository.ExpenditureRepository;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
 import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,9 @@ class CategoryServiceTest {
 
     @Mock
     private ExpenditureRepository expenditureRepository;
+
+    @Mock
+    private CategorySelectionHistoryRepository categorySelectionHistoryRepository;
 
     @InjectMocks
     private CategoryService categoryService;
@@ -61,6 +66,23 @@ class CategoryServiceTest {
     }
 
     @Test
+    void 접근_가능한_기본_카테고리와_본인의_커스텀_카테고리를_조회한다() {
+        Category defaultCategory = Category.builder()
+                .id(1L)
+                .categoryType(CategoryType.FOOD)
+                .name("식비")
+                .build();
+        when(categoryRepository.findAccessibleCategories(member))
+                .thenReturn(List.of(defaultCategory, customCategory));
+
+        List<CategoryResponse> response = categoryService.getCategoryList(member);
+
+        assertThat(response).extracting(CategoryResponse::getName)
+                .containsExactly("식비", "기존 이름");
+        verify(categoryRepository).findAccessibleCategories(member);
+    }
+
+    @Test
     void 사용_중인_카테고리_규칙은_삭제할_수_없다() {
         when(categoryRepository.findAccessibleCategoryForUpdate(10L, member)).thenReturn(Optional.of(customCategory));
         when(expenditureRepository.existsByCategory(customCategory)).thenReturn(true);
@@ -80,6 +102,7 @@ class CategoryServiceTest {
 
         categoryService.deleteCategoryRule(member, 10L);
 
+        verify(categorySelectionHistoryRepository).deleteAllByMemberAndCategory(member, customCategory);
         verify(categoryRepository).delete(customCategory);
     }
 
