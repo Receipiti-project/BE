@@ -6,6 +6,7 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateRespons
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ConsumptionRouteResponse;
 import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.ApiResponse;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import java.time.LocalDate;
 
 @Tag(name = "Expenditures", description = "지출 내역 관련 API")
 public interface ExpenditureApiDocs {
@@ -33,6 +35,15 @@ public interface ExpenditureApiDocs {
             Member member,
             int year,
             int month
+    );
+
+    @Operation(
+            summary = "일별 소비 동선 조회",
+            description = "선택한 날짜의 좌표가 저장된 지출을 방문 시각순으로 조회하고 직선 기준 예상 이동거리를 반환합니다."
+    )
+    ResponseEntity<ConsumptionRouteResponse> getConsumptionRoute(
+            @Parameter(hidden = true) Member member,
+            @Parameter(description = "조회 날짜", example = "2026-08-25") LocalDate date
     );
 
     @Operation(summary = "지출 내역 상세 조회", description = "특정 지출 내역의 상세 정보를 조회합니다.")

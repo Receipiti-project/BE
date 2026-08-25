@@ -35,6 +35,18 @@ public interface ExpenditureRepository extends JpaRepository<Expenditure, Long> 
     @Query("SELECT e FROM Expenditure e " +
             "JOIN FETCH e.category " +
             "JOIN FETCH e.store " +
+            "WHERE e.member = :member " +
+            "AND e.expenditureDate >= :start AND e.expenditureDate < :end " +
+            "ORDER BY e.expenditureDate ASC")
+    List<Expenditure> findRouteByDate(
+            @Param("member") Member member,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("SELECT e FROM Expenditure e " +
+            "JOIN FETCH e.category " +
+            "JOIN FETCH e.store " +
             "WHERE e.id = :expenditureId AND e.member = :member")
     Optional<Expenditure> findByIdAndMember(
             @Param("expenditureId") Long expenditureId,

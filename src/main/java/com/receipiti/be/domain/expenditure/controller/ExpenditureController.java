@@ -7,7 +7,9 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateRespons
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ConsumptionRouteResponse;
 import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
+import com.receipiti.be.domain.expenditure.service.ConsumptionRouteService;
 import com.receipiti.be.domain.expenditure.service.ExpenditureService;
 import com.receipiti.be.domain.member.entity.Member;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 
 @Slf4j
 @RestController
@@ -34,6 +38,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class ExpenditureController implements ExpenditureApiDocs {
     private final ExpenditureService expenditureService;
+    private final ConsumptionRouteService consumptionRouteService;
 
     @Override
     @PostMapping
@@ -57,6 +62,15 @@ public class ExpenditureController implements ExpenditureApiDocs {
         ExpenditureListResponse response = expenditureService.getExpenditureList(member, year, month);
 
         return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @GetMapping("/routes")
+    public ResponseEntity<ConsumptionRouteResponse> getConsumptionRoute(
+            @AuthenticationPrincipal Member member,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(consumptionRouteService.getRoute(member, date));
     }
 
     @Override
