@@ -54,13 +54,7 @@ public class ExpenditureService {
         String storeName = request.getStoreName().trim();
         String businessCategory = trimToNull(request.getBusinessCategory());
 
-        Store store = storeRepository.findByName(storeName)
-                .orElseGet(() -> storeRepository.save(
-                        Store.builder()
-                                .name(storeName)
-                                .bizCategory(businessCategory)
-                                .build()
-                ));
+        Store store = getOrCreateStore(storeName, businessCategory, request);
         store.fillBusinessCategoryIfAbsent(businessCategory);
 
         CategoryResolution categoryResolution = resolveCategory(member, store, request);
@@ -129,6 +123,41 @@ public class ExpenditureService {
                         null,
                         null
                 ));
+    }
+
+    private Store getOrCreateStore(
+            String storeName,
+            String businessCategory,
+            ExpenditureCreateRequest request
+    ) {
+        String placeId = trimToNull(request.getPlaceId());
+        if (placeId == null) {
+            return storeRepository.findByName(storeName)
+                    .orElseGet(() -> storeRepository.save(
+                            Store.builder()
+                                    .name(storeName)
+                                    .bizCategory(businessCategory)
+                                    .build()
+                    ));
+        }
+
+        Store store = storeRepository.findByKakaoPlaceId(placeId)
+                .orElseGet(() -> storeRepository.save(
+                        Store.builder()
+                                .name(storeName)
+                                .kakaoPlaceId(placeId)
+                                .address(trimToNull(request.getAddress()))
+                                .bizCategory(businessCategory)
+                                .latitude(request.getLatitude())
+                                .longitude(request.getLongitude())
+                                .build()
+                ));
+        store.fillLocationIfAbsent(
+                trimToNull(request.getAddress()),
+                request.getLatitude(),
+                request.getLongitude()
+        );
+        return store;
     }
 
     private Category getAccessibleCategory(Long categoryId, Member member) {
