@@ -29,14 +29,19 @@ public class Store extends BaseEntity {
     @Column(name="store_name", nullable = false, length = 50)
     private String name;
 
+    @Column(name = "kakao_place_id", unique = true, length = 50)
+    private String kakaoPlaceId;
+
     @Column(name="road_address")
     private String address;
 
     @Column(name="biz_category", length = 100)
     private String bizCategory;
 
+    @Column(precision = 10, scale = 7)
     private BigDecimal latitude;
 
+    @Column(precision = 11, scale = 7)
     private BigDecimal longitude;
 
     public void fillBusinessCategoryIfAbsent(String businessCategory) {
@@ -44,6 +49,24 @@ public class Store extends BaseEntity {
                 && businessCategory != null
                 && !businessCategory.isBlank()) {
             this.bizCategory = businessCategory.trim();
+        }
+    }
+
+    public void fillLocationIfAbsent(
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude
+    ) {
+        if ((this.address == null || this.address.isBlank())
+                && address != null
+                && !address.isBlank()) {
+            this.address = address.trim();
+        }
+        if (this.latitude == null && latitude != null) {
+            this.latitude = latitude;
+        }
+        if (this.longitude == null && longitude != null) {
+            this.longitude = longitude;
         }
     }
 
