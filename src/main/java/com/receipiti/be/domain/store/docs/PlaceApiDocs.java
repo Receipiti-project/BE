@@ -4,6 +4,7 @@ import com.receipiti.be.domain.store.dto.PlaceSearchResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -25,7 +26,12 @@ public interface PlaceApiDocs {
             @Parameter(name = "query", description = "검색할 가맹점명", example = "스타벅스"),
             @Parameter(name = "latitude", description = "사용자 현재 위도", example = "37.5561"),
             @Parameter(name = "longitude", description = "사용자 현재 경도", example = "126.9236"),
-            @Parameter(name = "radius", description = "검색 반경(m), 기본값 5000", example = "5000")
+            @Parameter(
+                    name = "radius",
+                    description = "검색 반경(m), 0~20000",
+                    example = "5000",
+                    schema = @Schema(minimum = "0", maximum = "20000", defaultValue = "5000")
+            )
     })
     ResponseEntity<List<PlaceSearchResponse>> searchPlaces(
             @NotBlank String query,
