@@ -3,6 +3,7 @@ package com.receipiti.be.global.config;
 import com.receipiti.be.domain.member.service.CustomOAuth2UserService;
 import com.receipiti.be.global.auth.filter.JwtAuthenticationFilter;
 import com.receipiti.be.global.auth.handler.OAuth2SuccessHandler;
+import com.receipiti.be.global.auth.repository.DbOAuth2AuthorizationRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,7 +36,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, OAuth2SuccessHandler oAuth2SuccessHandler,
-                                           JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+                                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                                           DbOAuth2AuthorizationRequestRepository authorizationRequestRepository)
+            throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)    // CSRF 끄기
                 .formLogin(AbstractHttpConfigurer::disable) // 기본 폼 로그인 끄기
@@ -50,6 +53,8 @@ public class SecurityConfig {
 
                 // 카카오 로그인을 위한 OAuth2 설정 추가
                 .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestRepository(authorizationRequestRepository))
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
                 )
