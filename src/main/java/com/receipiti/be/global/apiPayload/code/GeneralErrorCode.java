@@ -12,6 +12,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH_401", "인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH_403", "요청이 거부되었습니다."),
     KAKAO_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_KAKAO_401", "카카오 로그인에 실패했습니다."),
+    INVALID_LOGIN_CODE(HttpStatus.UNAUTHORIZED, "AUTH_LOGIN_CODE_401", "유효하지 않거나 만료된 로그인 코드입니다."),
     KAKAO_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AUTH_KAKAO_502", "카카오 인증 서버 응답에 실패했습니다."),
     KAKAO_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_KAKAO_503", "카카오 인증 서버에 연결할 수 없습니다."),
     PLACE_SEARCH_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "PLACE_SEARCH_502", "장소 검색 서버 응답에 실패했습니다."),
