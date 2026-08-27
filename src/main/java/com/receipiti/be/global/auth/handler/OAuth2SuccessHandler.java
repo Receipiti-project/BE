@@ -1,6 +1,6 @@
 package com.receipiti.be.global.auth.handler;
 
-import com.receipiti.be.global.auth.provider.JwtTokenProvider;
+import com.receipiti.be.domain.member.service.LoginCodeService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtTokenProvider tokenProvider;
+    private final LoginCodeService loginCodeService;
 
     @Value("${oauth2.redirect-url}")
     private String redirectUrl;
@@ -32,12 +32,14 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // 카카오에서 준 고유 id를 꺼내기
         String socialId = oAuth2User.getAttribute("id").toString();
 
-        String accessToken = tokenProvider.createToken(socialId);
+        String loginCode = loginCodeService.issue(Long.valueOf(socialId));
 
         // 프론트로 리다이렉트(임시주소)
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
-                .queryParam("accessToken", accessToken)
-                .build().toUriString();
+                .queryParam("loginCode", loginCode)
+                .build()
+                .encode()
+                .toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
