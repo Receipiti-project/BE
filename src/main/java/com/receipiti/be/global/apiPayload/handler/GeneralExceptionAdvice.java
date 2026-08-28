@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @Slf4j
@@ -31,6 +32,17 @@ public class GeneralExceptionAdvice extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> onException(Exception exception, HttpServletRequest request) {
         log.error("시스템 에러 발생", exception);
         return getExceptionResponseEntity(GeneralErrorCode.INTERNAL_SERVER_ERROR, null);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException exception,
+            HttpHeaders headers,
+            HttpStatusCode statusCode,
+            WebRequest request
+    ) {
+        log.warn("파일 업로드 용량 초과: maxUploadSize={} bytes", exception.getMaxUploadSize());
+        return getExceptionResponseEntity(GeneralErrorCode.FILE_TOO_LARGE, null);
     }
 
     @Override
