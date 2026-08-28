@@ -17,6 +17,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
     KAKAO_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_KAKAO_503", "카카오 인증 서버에 연결할 수 없습니다."),
     PLACE_SEARCH_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "PLACE_SEARCH_502", "장소 검색 서버 응답에 실패했습니다."),
     PLACE_SEARCH_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "PLACE_SEARCH_503", "장소 검색 서버에 연결할 수 없습니다."),
+    FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_413", "파일 크기는 최대 20MB까지 업로드할 수 있습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_404", "요청한 리소스를 찾을 수 없습니다."),
     EXPENDITURE_NOT_FOUND(HttpStatus.NOT_FOUND, "EXPENDITURE_404", "존재하지 않거나 접근 권한이 없는 지출 내역입니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CATEGORY_404", "존재하지 않거나 접근 권한이 없는 카테고리입니다."),
