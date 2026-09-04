@@ -4,19 +4,17 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-public class KakaoClientConfig {
+public class GeminiClientConfig {
 
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
-    private static final Duration READ_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
 
     @Bean
-    @Primary
-    public RestClient kakaoRestClient(RestClient.Builder builder) {
+    public RestClient geminiRestClient(RestClient.Builder builder) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(CONNECT_TIMEOUT)
                 .build();
@@ -25,6 +23,7 @@ public class KakaoClientConfig {
         requestFactory.setReadTimeout(READ_TIMEOUT);
 
         return builder
+                .baseUrl("https://generativelanguage.googleapis.com")
                 .requestFactory(requestFactory)
                 .build();
     }

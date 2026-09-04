@@ -8,6 +8,7 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ConsumptionRouteResponse;
 import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
+import com.receipiti.be.domain.expenditure.dto.response.CardNotificationAnalysisResponse;
 import com.receipiti.be.domain.member.entity.Member;
 import com.receipiti.be.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,6 +72,16 @@ public interface ExpenditureApiDocs {
     @Operation(summary = "영수증 OCR 텍스트 추출", description = "영수증 사진을 받아 상호명, 금액, 날짜를 추출합니다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(description = "추출된 영수증 가계부 데이터를 반환합니다.")
     ResponseEntity<OcrResponse> extractTextFromReceipt(
+            org.springframework.web.multipart.MultipartFile file
+    );
+
+    @Operation(
+            summary = "카드 결제 알림 이미지 분석",
+            description = "카드사 결제 알림 이미지를 Gemini Vision으로 분석하여 가맹점명, 금액, 결제 시각 등의 소비 정보를 반환합니다."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(description = "구조화된 카드 결제 정보")
+    ResponseEntity<CardNotificationAnalysisResponse> analyzeCardNotification(
+            @Parameter(description = "카드 결제 알림 캡처 이미지")
             org.springframework.web.multipart.MultipartFile file
     );
 }
