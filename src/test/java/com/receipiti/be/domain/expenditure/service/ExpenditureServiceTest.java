@@ -146,6 +146,14 @@ class ExpenditureServiceTest {
 
     @Test
     void 선택한_카카오_장소의_좌표를_가맹점에_저장한다() {
+        Store selectedStore = Store.builder()
+                .id(4L)
+                .name("스타벅스 홍대점")
+                .kakaoPlaceId("123456789")
+                .address("서울 마포구 홍익로 1")
+                .latitude(new BigDecimal("37.5561000"))
+                .longitude(new BigDecimal("126.9236000"))
+                .build();
         ExpenditureCreateRequest request = new ExpenditureCreateRequest();
         request.setCategoryId(category.getId());
         request.setStoreName("스타벅스 홍대점");
@@ -157,20 +165,21 @@ class ExpenditureServiceTest {
         request.setExpenditureDate(LocalDateTime.of(2026, 8, 25, 12, 0));
         when(categoryRepository.findAccessibleCategory(category.getId(), member))
                 .thenReturn(Optional.of(category));
-        when(storeRepository.findByKakaoPlaceId("123456789")).thenReturn(Optional.empty());
-        when(storeRepository.save(org.mockito.ArgumentMatchers.any(Store.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(storeRepository.findByKakaoPlaceId("123456789"))
+                .thenReturn(Optional.of(selectedStore));
         when(expenditureRepository.save(org.mockito.ArgumentMatchers.any(Expenditure.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         expenditureService.createExpenditure(member, request);
 
-        ArgumentCaptor<Store> captor = ArgumentCaptor.forClass(Store.class);
-        verify(storeRepository).save(captor.capture());
-        assertThat(captor.getValue().getKakaoPlaceId()).isEqualTo("123456789");
-        assertThat(captor.getValue().getAddress()).isEqualTo("서울 마포구 홍익로 1");
-        assertThat(captor.getValue().getLatitude()).isEqualByComparingTo("37.5561000");
-        assertThat(captor.getValue().getLongitude()).isEqualByComparingTo("126.9236000");
+        verify(storeRepository).insertIfAbsentByKakaoPlaceId(
+                "스타벅스 홍대점",
+                "123456789",
+                "서울 마포구 홍익로 1",
+                null,
+                new BigDecimal("37.5561000"),
+                new BigDecimal("126.9236000")
+        );
         verify(storeRepository, never()).findByName("스타벅스 홍대점");
     }
 
@@ -200,6 +209,14 @@ class ExpenditureServiceTest {
         expenditureService.createExpenditure(member, request);
 
         verify(storeRepository, never()).save(org.mockito.ArgumentMatchers.any(Store.class));
+        verify(storeRepository).insertIfAbsentByKakaoPlaceId(
+                existingStore.getName(),
+                existingStore.getKakaoPlaceId(),
+                "서울 마포구 홍익로 1",
+                null,
+                new BigDecimal("37.5561000"),
+                new BigDecimal("126.9236000")
+        );
         assertThat(existingStore.getAddress()).isEqualTo("서울 마포구 홍익로 1");
         assertThat(existingStore.getLatitude()).isEqualByComparingTo("37.5561000");
         assertThat(existingStore.getLongitude()).isEqualByComparingTo("126.9236000");

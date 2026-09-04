@@ -26,6 +26,7 @@ import com.receipiti.be.domain.store.entity.Store;
 import com.receipiti.be.domain.store.repository.StoreRepository;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
 import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -145,17 +146,14 @@ public class ExpenditureService {
                     ));
         }
 
-        Store store = storeRepository.findByKakaoPlaceId(placeId)
-                .orElseGet(() -> storeRepository.save(
-                        Store.builder()
-                                .name(storeName)
-                                .kakaoPlaceId(placeId)
-                                .address(trimToNull(request.getAddress()))
-                                .bizCategory(businessCategory)
-                                .latitude(request.getLatitude())
-                                .longitude(request.getLongitude())
-                                .build()
-                ));
+        Store store = getOrCreateStoreByPlaceId(
+                placeId,
+                storeName,
+                trimToNull(request.getAddress()),
+                businessCategory,
+                request.getLatitude(),
+                request.getLongitude()
+        );
         store.fillLocationIfAbsent(
                 trimToNull(request.getAddress()),
                 request.getLatitude(),
@@ -306,17 +304,14 @@ public class ExpenditureService {
                 storeName = currentStore.getName();
             }
 
-            String resolvedStoreName = storeName;
-            Store selectedStore = storeRepository.findByKakaoPlaceId(placeId)
-                    .orElseGet(() -> storeRepository.save(
-                            Store.builder()
-                                    .name(resolvedStoreName)
-                                    .kakaoPlaceId(placeId)
-                                    .address(trimToNull(request.getAddress()))
-                                    .latitude(request.getLatitude())
-                                    .longitude(request.getLongitude())
-                                    .build()
-                    ));
+            Store selectedStore = getOrCreateStoreByPlaceId(
+                    placeId,
+                    storeName,
+                    trimToNull(request.getAddress()),
+                    null,
+                    request.getLatitude(),
+                    request.getLongitude()
+            );
             selectedStore.updateLocation(
                     trimToNull(request.getAddress()),
                     request.getLatitude(),
@@ -336,6 +331,26 @@ public class ExpenditureService {
                                 .name(storeName)
                                 .build()
                 ));
+    }
+
+    private Store getOrCreateStoreByPlaceId(
+            String placeId,
+            String storeName,
+            String address,
+            String businessCategory,
+            BigDecimal latitude,
+            BigDecimal longitude
+    ) {
+        storeRepository.insertIfAbsentByKakaoPlaceId(
+                storeName,
+                placeId,
+                address,
+                businessCategory,
+                latitude,
+                longitude
+        );
+        return storeRepository.findByKakaoPlaceId(placeId)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR));
     }
 
     @Transactional
