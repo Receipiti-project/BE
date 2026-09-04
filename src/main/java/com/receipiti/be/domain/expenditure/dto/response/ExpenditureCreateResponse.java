@@ -3,6 +3,7 @@ package com.receipiti.be.domain.expenditure.dto.response;
 import com.receipiti.be.domain.categoryhistory.enums.RecommendationReason;
 import com.receipiti.be.domain.expenditure.enums.CategoryClassificationType;
 import com.receipiti.be.domain.expenditure.enums.Currency;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,6 +13,10 @@ import lombok.Getter;
 public class ExpenditureCreateResponse {
     private Long expenditureId;
     private String storeName;
+    private String placeId;
+    private String address;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
     private Long amount;
     private LocalDateTime expenditureDate;
     private String memo;

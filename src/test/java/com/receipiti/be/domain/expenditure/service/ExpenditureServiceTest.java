@@ -15,6 +15,10 @@ import com.receipiti.be.domain.categoryhistory.service.PersonalizedCategoryServi
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureElement;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
+import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
 import com.receipiti.be.domain.expenditure.entity.Expenditure;
 import com.receipiti.be.domain.expenditure.enums.CategoryClassificationType;
 import com.receipiti.be.domain.expenditure.enums.Currency;
@@ -25,6 +29,7 @@ import com.receipiti.be.domain.store.entity.Store;
 import com.receipiti.be.domain.store.repository.StoreRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -327,16 +332,96 @@ class ExpenditureServiceTest {
         );
     }
 
+    @Test
+    void 월별_지출_목록에_가맹점_위치_정보를_반환한다() {
+        Store locatedStore = createLocatedStore();
+        Expenditure expenditure = createExpenditure(locatedStore);
+        LocalDateTime start = LocalDateTime.of(2026, 8, 1, 0, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 9, 1, 0, 0);
+        when(expenditureRepository.findByMonth(member, start, end))
+                .thenReturn(List.of(expenditure));
+
+        ExpenditureListResponse response = expenditureService.getExpenditureList(member, 2026, 8);
+
+        ExpenditureElement element = response.getDailyExpenditures().getFirst().getList().getFirst();
+        assertThat(element.getPlaceId()).isEqualTo("123456789");
+        assertThat(element.getAddress()).isEqualTo("서울 마포구 홍익로 1");
+        assertThat(element.getLatitude()).isEqualByComparingTo("37.5561000");
+        assertThat(element.getLongitude()).isEqualByComparingTo("126.9236000");
+    }
+
+    @Test
+    void 지출_상세에_가맹점_위치_정보를_반환한다() {
+        Store locatedStore = createLocatedStore();
+        Expenditure expenditure = createExpenditure(locatedStore);
+        when(expenditureRepository.findByIdAndMember(expenditure.getId(), member))
+                .thenReturn(Optional.of(expenditure));
+
+        ExpenditureDetailResponse response = expenditureService.getExpenditureDetail(
+                member,
+                expenditure.getId()
+        );
+
+        assertThat(response.getPlaceId()).isEqualTo("123456789");
+        assertThat(response.getAddress()).isEqualTo("서울 마포구 홍익로 1");
+        assertThat(response.getLatitude()).isEqualByComparingTo("37.5561000");
+        assertThat(response.getLongitude()).isEqualByComparingTo("126.9236000");
+    }
+
+    @Test
+    void 지출의_카카오_장소를_수정하면_가맹점_연관관계와_응답이_변경된다() {
+        Expenditure expenditure = createExpenditure();
+        ExpenditureUpdateRequest request = org.mockito.Mockito.mock(ExpenditureUpdateRequest.class);
+        Store selectedStore = createLocatedStore();
+        when(request.getCategoryId()).thenReturn(category.getId());
+        when(request.getPlaceId()).thenReturn(selectedStore.getKakaoPlaceId());
+        when(request.getStoreName()).thenReturn(selectedStore.getName());
+        when(request.getAddress()).thenReturn("서울 마포구 새 주소 2");
+        when(request.getLatitude()).thenReturn(new BigDecimal("37.5570000"));
+        when(request.getLongitude()).thenReturn(new BigDecimal("126.9240000"));
+        when(expenditureRepository.findByIdAndMember(expenditure.getId(), member))
+                .thenReturn(Optional.of(expenditure));
+        when(storeRepository.findByKakaoPlaceId(selectedStore.getKakaoPlaceId()))
+                .thenReturn(Optional.of(selectedStore));
+
+        ExpenditureUpdateResponse response = expenditureService.updateExpenditure(
+                member,
+                expenditure.getId(),
+                request
+        );
+
+        assertThat(expenditure.getStore()).isSameAs(selectedStore);
+        assertThat(response.getPlaceId()).isEqualTo("123456789");
+        assertThat(response.getAddress()).isEqualTo("서울 마포구 새 주소 2");
+        assertThat(response.getLatitude()).isEqualByComparingTo("37.5570000");
+        assertThat(response.getLongitude()).isEqualByComparingTo("126.9240000");
+    }
+
     private Expenditure createExpenditure() {
+        return createExpenditure(store);
+    }
+
+    private Expenditure createExpenditure(Store expenditureStore) {
         return Expenditure.builder()
                 .id(10L)
                 .member(member)
                 .category(category)
-                .store(store)
+                .store(expenditureStore)
                 .amount(5_000L)
                 .inputType(InputType.MANUAL)
                 .expenditureDate(LocalDateTime.of(2026, 8, 18, 12, 0))
                 .currency(Currency.KRW)
+                .build();
+    }
+
+    private Store createLocatedStore() {
+        return Store.builder()
+                .id(4L)
+                .name("스타벅스 홍대점")
+                .kakaoPlaceId("123456789")
+                .address("서울 마포구 홍익로 1")
+                .latitude(new BigDecimal("37.5561000"))
+                .longitude(new BigDecimal("126.9236000"))
                 .build();
     }
 

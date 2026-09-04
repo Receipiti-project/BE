@@ -70,4 +70,20 @@ public class Store extends BaseEntity {
         }
     }
 
+    public void updateLocation(
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude
+    ) {
+        if (address != null && !address.isBlank()) {
+            this.address = address.trim();
+        }
+        if (latitude != null) {
+            this.latitude = latitude;
+        }
+        if (longitude != null) {
+            this.longitude = longitude;
+        }
+    }
+
 }
