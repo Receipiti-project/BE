@@ -26,6 +26,7 @@ import com.receipiti.be.domain.store.entity.Store;
 import com.receipiti.be.domain.store.repository.StoreRepository;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
 import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -83,6 +84,10 @@ public class ExpenditureService {
         return new ExpenditureCreateResponse(
                 saved.getId(),
                 saved.getStore().getName(),
+                saved.getStore().getKakaoPlaceId(),
+                saved.getStore().getAddress(),
+                saved.getStore().getLatitude(),
+                saved.getStore().getLongitude(),
                 saved.getAmount(),
                 saved.getExpenditureDate(),
                 saved.getMemo(),
@@ -141,17 +146,14 @@ public class ExpenditureService {
                     ));
         }
 
-        Store store = storeRepository.findByKakaoPlaceId(placeId)
-                .orElseGet(() -> storeRepository.save(
-                        Store.builder()
-                                .name(storeName)
-                                .kakaoPlaceId(placeId)
-                                .address(trimToNull(request.getAddress()))
-                                .bizCategory(businessCategory)
-                                .latitude(request.getLatitude())
-                                .longitude(request.getLongitude())
-                                .build()
-                ));
+        Store store = getOrCreateStoreByPlaceId(
+                placeId,
+                storeName,
+                trimToNull(request.getAddress()),
+                businessCategory,
+                request.getLatitude(),
+                request.getLongitude()
+        );
         store.fillLocationIfAbsent(
                 trimToNull(request.getAddress()),
                 request.getLatitude(),
@@ -203,6 +205,10 @@ public class ExpenditureService {
                                     .expenditureId(exp.getId())
                                     .categoryName(exp.getCategory().getName())
                                     .storeName(exp.getStore().getName())
+                                    .placeId(exp.getStore().getKakaoPlaceId())
+                                    .address(exp.getStore().getAddress())
+                                    .latitude(exp.getStore().getLatitude())
+                                    .longitude(exp.getStore().getLongitude())
                                     .amount(exp.getAmount())
                                     .expenditureDate(exp.getExpenditureDate())
                                     .memo(exp.getMemo())
@@ -227,6 +233,10 @@ public class ExpenditureService {
                 .categoryId(expenditure.getCategory().getId())
                 .categoryName(expenditure.getCategory().getName())
                 .storeName(expenditure.getStore().getName())
+                .placeId(expenditure.getStore().getKakaoPlaceId())
+                .address(expenditure.getStore().getAddress())
+                .latitude(expenditure.getStore().getLatitude())
+                .longitude(expenditure.getStore().getLongitude())
                 .amount(expenditure.getAmount())
                 .expenditureDate(expenditure.getExpenditureDate())
                 .memo(expenditure.getMemo())
@@ -250,19 +260,7 @@ public class ExpenditureService {
             categoryChanged = true;
         }
 
-        // 가게명 수정
-        Store store = expenditure.getStore();
-        if (request.getStoreName() != null && !request.getStoreName().trim().isEmpty()) {
-            String newStoreName = request.getStoreName().trim();
-            if (!newStoreName.equals(store.getName())) { // 기존 가게명과 다를 때만 실행
-                store = storeRepository.findByName(newStoreName)
-                        .orElseGet(() -> storeRepository.save(
-                                Store.builder()
-                                        .name(newStoreName)
-                                        .build()
-                        ));
-            }
-        }
+        Store store = resolveStoreForUpdate(expenditure.getStore(), request);
 
         // 엔티티에 값 던져서 변경 감지
         expenditure.update(
@@ -287,11 +285,72 @@ public class ExpenditureService {
         return new ExpenditureUpdateResponse(
                 expenditure.getId(),
                 expenditure.getStore().getName(),
+                expenditure.getStore().getKakaoPlaceId(),
+                expenditure.getStore().getAddress(),
+                expenditure.getStore().getLatitude(),
+                expenditure.getStore().getLongitude(),
                 expenditure.getAmount(),
                 expenditure.getExpenditureDate(),
                 expenditure.getMemo(),
                 expenditure.getCurrency()
         );
+    }
+
+    private Store resolveStoreForUpdate(Store currentStore, ExpenditureUpdateRequest request) {
+        String placeId = trimToNull(request.getPlaceId());
+        if (placeId != null) {
+            String storeName = trimToNull(request.getStoreName());
+            if (storeName == null) {
+                storeName = currentStore.getName();
+            }
+
+            Store selectedStore = getOrCreateStoreByPlaceId(
+                    placeId,
+                    storeName,
+                    trimToNull(request.getAddress()),
+                    null,
+                    request.getLatitude(),
+                    request.getLongitude()
+            );
+            selectedStore.updateLocation(
+                    trimToNull(request.getAddress()),
+                    request.getLatitude(),
+                    request.getLongitude()
+            );
+            return selectedStore;
+        }
+
+        String storeName = trimToNull(request.getStoreName());
+        if (storeName == null || storeName.equals(currentStore.getName())) {
+            return currentStore;
+        }
+
+        return storeRepository.findByName(storeName)
+                .orElseGet(() -> storeRepository.save(
+                        Store.builder()
+                                .name(storeName)
+                                .build()
+                ));
+    }
+
+    private Store getOrCreateStoreByPlaceId(
+            String placeId,
+            String storeName,
+            String address,
+            String businessCategory,
+            BigDecimal latitude,
+            BigDecimal longitude
+    ) {
+        storeRepository.insertIfAbsentByKakaoPlaceId(
+                storeName,
+                placeId,
+                address,
+                businessCategory,
+                latitude,
+                longitude
+        );
+        return storeRepository.findByKakaoPlaceId(placeId)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR));
     }
 
     @Transactional

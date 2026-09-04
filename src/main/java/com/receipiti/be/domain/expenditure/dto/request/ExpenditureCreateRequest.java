@@ -53,9 +53,10 @@ public class ExpenditureCreateRequest {
     @AssertTrue(message = "장소를 선택한 경우 placeId, latitude, longitude를 모두 입력해야 합니다.")
     public boolean isPlaceSelectionValid() {
         boolean hasPlaceId = placeId != null && !placeId.isBlank();
+        boolean hasAddress = address != null && !address.isBlank();
         boolean hasLatitude = latitude != null;
         boolean hasLongitude = longitude != null;
-        boolean hasNoPlaceSelection = !hasPlaceId && !hasLatitude && !hasLongitude;
+        boolean hasNoPlaceSelection = !hasPlaceId && !hasAddress && !hasLatitude && !hasLongitude;
         boolean hasCompletePlaceSelection = hasPlaceId && hasLatitude && hasLongitude;
         return hasNoPlaceSelection || hasCompletePlaceSelection;
     }
