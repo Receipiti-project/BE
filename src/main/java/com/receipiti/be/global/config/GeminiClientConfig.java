@@ -1,30 +1,23 @@
 package com.receipiti.be.global.config;
 
-import java.net.http.HttpClient;
-import java.time.Duration;
+import com.google.genai.Client;
+import com.google.genai.types.HttpOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.web.client.RestClient;
 
 @Configuration
 public class GeminiClientConfig {
 
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
+    private static final int REQUEST_TIMEOUT_MILLIS = 30_000;
 
-    @Bean
-    public RestClient geminiRestClient(RestClient.Builder builder) {
-        HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(CONNECT_TIMEOUT)
-                .build();
-
-        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(READ_TIMEOUT);
-
-        return builder
-                .baseUrl("https://generativelanguage.googleapis.com")
-                .requestFactory(requestFactory)
+    @Bean(destroyMethod = "close")
+    public Client geminiClient(@Value("${gemini.api.key}") String apiKey) {
+        return Client.builder()
+                .apiKey(apiKey)
+                .httpOptions(HttpOptions.builder()
+                        .timeout(REQUEST_TIMEOUT_MILLIS)
+                        .build())
                 .build();
     }
 }

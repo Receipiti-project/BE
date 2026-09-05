@@ -1,30 +1,20 @@
 package com.receipiti.be.domain.expenditure.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.receipiti.be.domain.expenditure.dto.response.CardNotificationAnalysisResponse;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
 import com.receipiti.be.global.apiPayload.exception.GeneralException;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Service
 public class CardNotificationAnalysisService {
 
-    private static final String MODEL = "gemini-2.5-flash";
     private static final Set<String> SUPPORTED_IMAGE_TYPES = Set.of(
             MediaType.IMAGE_JPEG_VALUE,
             MediaType.IMAGE_PNG_VALUE,
@@ -49,17 +39,14 @@ public class CardNotificationAnalysisService {
             - 확인할 수 없는 문자열은 빈 문자열, 금액은 0으로 반환하세요.
             """;
 
-    private final RestClient geminiRestClient;
+    private final GeminiCardNotificationClient geminiClient;
     private final ObjectMapper objectMapper;
 
-    @Value("${gemini.api.key}")
-    private String apiKey;
-
     public CardNotificationAnalysisService(
-            @Qualifier("geminiRestClient") RestClient geminiRestClient,
+            GeminiCardNotificationClient geminiClient,
             ObjectMapper objectMapper
     ) {
-        this.geminiRestClient = geminiRestClient;
+        this.geminiClient = geminiClient;
         this.objectMapper = objectMapper;
     }
 
@@ -67,26 +54,13 @@ public class CardNotificationAnalysisService {
         validateImage(file);
 
         try {
-            Map<String, Object> request = createRequest(file);
-            JsonNode response = geminiRestClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/v1beta/models/{model}:generateContent")
-                            .queryParam("key", apiKey)
-                            .build(MODEL))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(request)
-                    .retrieve()
-                    .body(JsonNode.class);
-
+            String response = geminiClient.analyze(PROMPT, file.getBytes(), file.getContentType());
             CardNotificationAnalysisResponse result = parseResponse(response);
             validateResult(result);
             return result;
         } catch (GeneralException exception) {
             throw exception;
-        } catch (RestClientResponseException exception) {
-            log.warn("Gemini 카드 알림 분석 응답 오류: status={}", exception.getStatusCode());
-            throw new GeneralException(GeneralErrorCode.CARD_NOTIFICATION_ANALYSIS_FAILED);
-        } catch (RestClientException | IOException exception) {
+        } catch (RuntimeException | IOException exception) {
             log.warn("Gemini 카드 알림 분석 실패", exception);
             throw new GeneralException(GeneralErrorCode.CARD_NOTIFICATION_ANALYSIS_FAILED);
         }
@@ -101,54 +75,11 @@ public class CardNotificationAnalysisService {
         }
     }
 
-    private Map<String, Object> createRequest(MultipartFile file) throws IOException {
-        Map<String, Object> textPart = Map.of("text", PROMPT);
-        Map<String, Object> imagePart = Map.of("inline_data", Map.of(
-                "mime_type", file.getContentType(),
-                "data", Base64.getEncoder().encodeToString(file.getBytes())
-        ));
-
-        return Map.of(
-                "contents", List.of(Map.of("parts", List.of(textPart, imagePart))),
-                "generationConfig", Map.of(
-                        "temperature", 0,
-                        "responseMimeType", MediaType.APPLICATION_JSON_VALUE,
-                        "responseSchema", responseSchema()
-                )
-        );
-    }
-
-    private Map<String, Object> responseSchema() {
-        return Map.of(
-                "type", "OBJECT",
-                "properties", Map.of(
-                        "paymentNotification", Map.of("type", "BOOLEAN"),
-                        "cardCompany", Map.of("type", "STRING"),
-                        "storeName", Map.of("type", "STRING"),
-                        "amount", Map.of("type", "INTEGER"),
-                        "paymentDateTime", Map.of("type", "STRING"),
-                        "currency", Map.of("type", "STRING"),
-                        "approvalStatus", Map.of(
-                                "type", "STRING",
-                                "enum", List.of("APPROVED", "CANCELED", "UNKNOWN")
-                        ),
-                        "confidence", Map.of("type", "NUMBER")
-                ),
-                "required", List.of(
-                        "paymentNotification", "cardCompany", "storeName", "amount",
-                        "paymentDateTime", "currency", "approvalStatus", "confidence"
-                )
-        );
-    }
-
-    private CardNotificationAnalysisResponse parseResponse(JsonNode response) throws IOException {
-        JsonNode text = response == null
-                ? null
-                : response.at("/candidates/0/content/parts/0/text");
-        if (text == null || !text.isTextual() || text.asText().isBlank()) {
+    private CardNotificationAnalysisResponse parseResponse(String response) throws IOException {
+        if (response == null || response.isBlank()) {
             throw new GeneralException(GeneralErrorCode.CARD_NOTIFICATION_ANALYSIS_FAILED);
         }
-        return objectMapper.readValue(text.asText(), CardNotificationAnalysisResponse.class);
+        return objectMapper.readValue(response, CardNotificationAnalysisResponse.class);
     }
 
     private void validateResult(CardNotificationAnalysisResponse result) {
@@ -156,7 +87,11 @@ public class CardNotificationAnalysisService {
                 || result.storeName() == null
                 || result.storeName().isBlank()
                 || result.amount() == null
-                || result.amount() <= 0) {
+                || result.amount() <= 0
+                || result.confidence() == null
+                || !Double.isFinite(result.confidence())
+                || result.confidence() < 0.0
+                || result.confidence() > 1.0) {
             throw new GeneralException(GeneralErrorCode.CARD_NOTIFICATION_INFORMATION_INSUFFICIENT);
         }
     }
