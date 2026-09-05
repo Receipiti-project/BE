@@ -9,6 +9,8 @@ import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureUpdateResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ConsumptionRouteResponse;
 import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
+import com.receipiti.be.domain.expenditure.dto.response.CardNotificationAnalysisResponse;
+import com.receipiti.be.domain.expenditure.service.CardNotificationAnalysisService;
 import com.receipiti.be.domain.expenditure.service.ConsumptionRouteService;
 import com.receipiti.be.domain.expenditure.service.ExpenditureService;
 import com.receipiti.be.domain.member.entity.Member;
@@ -39,6 +41,7 @@ import java.time.LocalDate;
 public class ExpenditureController implements ExpenditureApiDocs {
     private final ExpenditureService expenditureService;
     private final ConsumptionRouteService consumptionRouteService;
+    private final CardNotificationAnalysisService cardNotificationAnalysisService;
 
     @Override
     @PostMapping
@@ -117,5 +120,13 @@ public class ExpenditureController implements ExpenditureApiDocs {
     ) {
         OcrResponse response = expenditureService.extractTextFromReceipt(file);
         return ResponseEntity.ok(response);
+    }
+
+    @Override
+    @PostMapping(value = "/card-notification/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CardNotificationAnalysisResponse> analyzeCardNotification(
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(cardNotificationAnalysisService.analyze(file));
     }
 }
