@@ -4,6 +4,7 @@ import com.receipiti.be.domain.report.docs.ReportApiDocs;
 import com.receipiti.be.domain.report.dto.request.ReportCreateRequest;
 import com.receipiti.be.domain.report.dto.response.ReportResponse;
 import com.receipiti.be.domain.report.service.GeminiService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,7 +21,7 @@ public class ReportController implements ReportApiDocs {
     @PostMapping("/report")
     public ReportResponse createReport(
             @RequestParam String month,
-            @RequestBody ReportCreateRequest request) {
+            @Valid @RequestBody ReportCreateRequest request) {
 
         // 실제로는 DB에서 해당 월의 회원의 지출 데이터를 꺼내와서 넘겨주는 로직이 들어갈 예정입니다.
         // 지금은 테스트를 위해 가상의 데이터를 넣었습니다.

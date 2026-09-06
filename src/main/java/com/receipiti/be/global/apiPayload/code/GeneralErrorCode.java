@@ -22,6 +22,8 @@ public enum GeneralErrorCode implements BaseErrorCode {
     UNSUPPORTED_IMAGE_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "IMAGE_415", "지원하지 않는 이미지 형식입니다."),
     CARD_NOTIFICATION_INFORMATION_INSUFFICIENT(HttpStatus.UNPROCESSABLE_ENTITY, "CARD_NOTIFICATION_422", "카드 결제 정보를 충분히 확인할 수 없습니다."),
     CARD_NOTIFICATION_ANALYSIS_FAILED(HttpStatus.BAD_GATEWAY, "CARD_NOTIFICATION_502", "카드 결제 알림 이미지 분석에 실패했습니다."),
+    AI_REPORT_RESPONSE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "AI_REPORT_422", "AI 소비 리포트 응답 형식이 올바르지 않습니다."),
+    AI_REPORT_GENERATION_FAILED(HttpStatus.BAD_GATEWAY, "AI_REPORT_502", "AI 소비 리포트 생성에 실패했습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_404", "요청한 리소스를 찾을 수 없습니다."),
     EXPENDITURE_NOT_FOUND(HttpStatus.NOT_FOUND, "EXPENDITURE_404", "존재하지 않거나 접근 권한이 없는 지출 내역입니다."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CATEGORY_404", "존재하지 않거나 접근 권한이 없는 카테고리입니다."),

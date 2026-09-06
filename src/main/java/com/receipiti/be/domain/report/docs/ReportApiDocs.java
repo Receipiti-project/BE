@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -17,7 +18,7 @@ public interface ReportApiDocs {
 
     @Operation(
             summary = "AI 소비 분석 리포트 생성",
-            description = "선택한 월과 해당 월의 소비 데이터를 기반으로 [카테고리별/요일별/시간대별 분석, 소비 습관 진단, 이상 소비 탐지] 내용을 담은 마크다운 형식의 리포트를 생성합니다."
+            description = "선택한 월과 해당 월의 소비 데이터를 기반으로 총 지출, 이상 소비 탐지, 주요 시간대·요일·카테고리, 소비 패턴과 요약을 구조화된 JSON으로 생성합니다."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "AI 리포트 생성 성공",
@@ -29,6 +30,6 @@ public interface ReportApiDocs {
             @RequestParam String month,
 
             @Parameter(description = "분석할 가계부 소비 내역 텍스트 데이터", example = "- 6/5 식비 12000원...")
-            @RequestBody ReportCreateRequest reportCreateRequest
+            @Valid @RequestBody ReportCreateRequest reportCreateRequest
     );
 }
