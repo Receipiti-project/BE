@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.receipiti.be.domain.report.dto.response.ReportResponse;
 import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
 import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +20,9 @@ public class GeminiService {
     private static final Pattern TIME_RANGE_PATTERN = Pattern.compile(
             "^(?:[01]\\d|2[0-3]):[0-5]\\d~(?:[01]\\d|2[0-3]):[0-5]\\d$"
     );
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final String NO_INFORMATION = "정보 없음";
+    private static final double PERCENTAGE_TOLERANCE = 0.1;
     private static final Set<String> DAYS = Set.of(
             "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일", "정보 없음"
     );
@@ -60,7 +65,10 @@ public class GeminiService {
             return result;
         } catch (GeneralException exception) {
             throw exception;
-        } catch (RuntimeException | JsonProcessingException exception) {
+        } catch (JsonProcessingException exception) {
+            log.warn("Gemini 소비 리포트 응답 역직렬화 실패", exception);
+            throw new GeneralException(GeneralErrorCode.AI_REPORT_RESPONSE_INVALID);
+        } catch (RuntimeException exception) {
             log.warn("Gemini 소비 리포트 생성 실패", exception);
             throw new GeneralException(GeneralErrorCode.AI_REPORT_GENERATION_FAILED);
         }
@@ -86,9 +94,9 @@ public class GeminiService {
                 || result.totalAmount() == null || result.totalAmount() < 0
                 || result.transactionCount() == null || result.transactionCount() < 0
                 || isBlank(result.anomalyReason())
-                || !validTimeAnalysis(result.frequentSpendingTime())
-                || !validDayAnalysis(result.frequentSpendingDay())
-                || !validCategoryAnalysis(result.topCategory())
+                || !validTimeAnalysis(result.frequentSpendingTime(), result.transactionCount(), result.totalAmount())
+                || !validDayAnalysis(result.frequentSpendingDay(), result.transactionCount(), result.totalAmount())
+                || !validCategoryAnalysis(result.topCategory(), result.totalAmount())
                 || result.spendingPatternInsights() == null
                 || result.spendingPatternInsights().isEmpty()
                 || result.spendingPatternInsights().size() > 3
@@ -98,31 +106,74 @@ public class GeminiService {
         }
     }
 
-    private boolean validTimeAnalysis(ReportResponse.TimeAnalysis analysis) {
+    private boolean validTimeAnalysis(
+            ReportResponse.TimeAnalysis analysis,
+            int totalTransactionCount,
+            long totalAmount
+    ) {
         return analysis != null
-                && analysis.timeRange() != null
-                && ("정보 없음".equals(analysis.timeRange())
-                || TIME_RANGE_PATTERN.matcher(analysis.timeRange()).matches())
+                && validTimeRange(analysis.timeRange())
                 && analysis.transactionCount() != null && analysis.transactionCount() >= 0
+                && analysis.transactionCount() <= totalTransactionCount
                 && analysis.amount() != null && analysis.amount() >= 0
+                && analysis.amount() <= totalAmount
+                && (!NO_INFORMATION.equals(analysis.timeRange())
+                || (analysis.transactionCount() == 0 && analysis.amount() == 0))
                 && !isBlank(analysis.description());
     }
 
-    private boolean validDayAnalysis(ReportResponse.DayAnalysis analysis) {
+    private boolean validDayAnalysis(
+            ReportResponse.DayAnalysis analysis,
+            int totalTransactionCount,
+            long totalAmount
+    ) {
         return analysis != null
+                && analysis.dayOfWeek() != null
                 && DAYS.contains(analysis.dayOfWeek())
                 && analysis.transactionCount() != null && analysis.transactionCount() >= 0
+                && analysis.transactionCount() <= totalTransactionCount
                 && analysis.amount() != null && analysis.amount() >= 0
+                && analysis.amount() <= totalAmount
+                && (!NO_INFORMATION.equals(analysis.dayOfWeek())
+                || (analysis.transactionCount() == 0 && analysis.amount() == 0))
                 && !isBlank(analysis.description());
     }
 
-    private boolean validCategoryAnalysis(ReportResponse.CategoryAnalysis analysis) {
+    private boolean validCategoryAnalysis(ReportResponse.CategoryAnalysis analysis, long totalAmount) {
+        if (analysis == null
+                || isBlank(analysis.categoryName())
+                || analysis.amount() == null || analysis.amount() < 0 || analysis.amount() > totalAmount
+                || analysis.percentage() == null || !Double.isFinite(analysis.percentage())
+                || analysis.percentage() < 0.0 || analysis.percentage() > 100.0
+                || isBlank(analysis.description())) {
+            return false;
+        }
+
+        if (totalAmount == 0) {
+            return NO_INFORMATION.equals(analysis.categoryName())
+                    && analysis.amount() == 0
+                    && analysis.percentage() == 0.0;
+        }
+
+        double expectedPercentage = analysis.amount() * 100.0 / totalAmount;
         return analysis != null
-                && !isBlank(analysis.categoryName())
-                && analysis.amount() != null && analysis.amount() >= 0
-                && analysis.percentage() != null && Double.isFinite(analysis.percentage())
-                && analysis.percentage() >= 0.0 && analysis.percentage() <= 100.0
-                && !isBlank(analysis.description());
+                && (!NO_INFORMATION.equals(analysis.categoryName())
+                || (analysis.amount() == 0 && analysis.percentage() == 0.0))
+                && Math.abs(analysis.percentage() - expectedPercentage) <= PERCENTAGE_TOLERANCE;
+    }
+
+    private boolean validTimeRange(String timeRange) {
+        if (NO_INFORMATION.equals(timeRange)) {
+            return true;
+        }
+        if (timeRange == null || !TIME_RANGE_PATTERN.matcher(timeRange).matches()) {
+            return false;
+        }
+
+        String[] times = timeRange.split("~", -1);
+        LocalTime start = LocalTime.parse(times[0], TIME_FORMATTER);
+        LocalTime end = LocalTime.parse(times[1], TIME_FORMATTER);
+        return !start.equals(end) && start.plusHours(3).equals(end);
     }
 
     private boolean isBlank(String value) {

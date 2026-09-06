@@ -23,7 +23,15 @@ public interface ReportApiDocs {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "AI 리포트 생성 성공",
                     content = @Content(schema = @Schema(implementation = ReportResponse.class))),
-            @ApiResponse(responseCode = "500", description = "구글 Gemini API 호출 또는 서버 내부 오류")
+            @ApiResponse(responseCode = "400", description = "요청 월 형식 또는 소비 데이터 검증 실패",
+                    content = @Content(schema = @Schema(
+                            implementation = com.receipiti.be.global.apiPayload.ApiResponse.class))),
+            @ApiResponse(responseCode = "422", description = "Gemini 응답 형식 또는 분석 결과 검증 실패",
+                    content = @Content(schema = @Schema(
+                            implementation = com.receipiti.be.global.apiPayload.ApiResponse.class))),
+            @ApiResponse(responseCode = "502", description = "구글 Gemini API 호출 실패",
+                    content = @Content(schema = @Schema(
+                            implementation = com.receipiti.be.global.apiPayload.ApiResponse.class)))
     })
     ReportResponse createReport(
             @Parameter(description = "분석 대상 월", example = "2026-06")
