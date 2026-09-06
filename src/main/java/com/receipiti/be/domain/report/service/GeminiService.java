@@ -1,67 +1,182 @@
 package com.receipiti.be.domain.report.service;
 
-import com.receipiti.be.domain.report.dto.request.GeminiRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.receipiti.be.domain.report.dto.response.ReportResponse;
-import org.springframework.beans.factory.annotation.Value;
+import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
+import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Set;
+import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
-import java.util.Map;
-import java.util.List;
 
+@Slf4j
 @Service
 public class GeminiService {
 
-    @Value("${gemini.api.key}")
-    private String apiKey;
+    private static final Pattern TARGET_MONTH_PATTERN = Pattern.compile("^\\d{4}-(0[1-9]|1[0-2])$");
+    private static final Pattern TIME_RANGE_PATTERN = Pattern.compile(
+            "^(?:[01]\\d|2[0-3]):[0-5]\\d~(?:[01]\\d|2[0-3]):[0-5]\\d$"
+    );
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final String NO_INFORMATION = "정보 없음";
+    private static final double PERCENTAGE_TOLERANCE = 0.1;
+    private static final Set<String> DAYS = Set.of(
+            "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일", "정보 없음"
+    );
+    private static final String PROMPT_TEMPLATE = """
+            당신은 가계부 소비 데이터를 분석하는 자산 관리 분석가입니다.
+            분석 대상 월은 %s입니다. 아래 소비 내역에 실제로 존재하는 정보만 계산하고 해석하세요.
 
-    private final RestTemplate restTemplate = new RestTemplate();
+            분석 규칙:
+            - 총 지출액과 결제 건수는 입력 데이터 전체를 기준으로 계산합니다.
+            - 이상 소비는 평소 패턴과 비교할 근거가 입력에 있을 때만 탐지합니다.
+              비교 근거가 없거나 이상이 없으면 anomalyDetected=false로 반환하고 이유를 설명합니다.
+            - 가장 소비가 잦은 시간대는 3시간 단위로 묶어 HH:mm~HH:mm 형식으로 반환합니다.
+            - 가장 소비가 잦은 요일은 월요일~일요일 중 하나로 반환합니다.
+            - 최다 소비 카테고리는 지출액 기준이며 percentage는 총 지출 대비 0~100 사이 비율입니다.
+            - 시간, 요일, 카테고리 정보가 없으면 이름은 '정보 없음', 건수와 금액은 0으로 반환합니다.
+            - spendingPatternInsights는 중복 없이 핵심 패턴을 1~3개 작성합니다.
+            - summary는 수치와 핵심 패턴을 포함한 부드러운 격식체의 한국어 1~2문장으로 작성합니다.
+            - 데이터에 없는 상호명, 카테고리, 금액, 날짜를 추측하지 마세요.
+            - 마크다운이나 JSON 외 설명을 추가하지 마세요.
+
+            소비 내역:
+            %s
+            """;
+
+    private final GeminiReportClient geminiClient;
+    private final ObjectMapper objectMapper;
+
+    public GeminiService(GeminiReportClient geminiClient, ObjectMapper objectMapper) {
+        this.geminiClient = geminiClient;
+        this.objectMapper = objectMapper;
+    }
 
     public ReportResponse generateExpenditureReport(String targetMonth, String expenditureData) {
-        // 구글 AI 스튜디오 표준 API 최신 엔드포인트 주소
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
-
-        String prompt = String.format(
-                "너는 유저의 가계부 소비 내역을 분석해주는 전문 자산 관리사야. [%s]의 소비 내역 데이터를 바탕으로 반드시 아래 5가지 항목을 모두 포함해서 구체적인 리포트를 작성해줘.\n\n" +
-                        "1. 카테고리별 소비 분석\n2. 요일별 소비 분석\n3. 시간대별 소비 분석\n4. 소비 습관 진단\n5. 이상 소비 탐지\n\n" +
-                        "말투는 부드러운 격식체(~합니다)를 사용하고, 가독성을 위해 마크다운 문법(##, *, -)을 지켜줘.\n\n데이터:\n%s",
-                targetMonth, expenditureData
-        );
-
-        GeminiRequest request = new GeminiRequest(prompt);
+        validateRequest(targetMonth, expenditureData);
 
         try {
-            // 구글 표준 API 호출
-            Map<String, Object> response = restTemplate.postForObject(url, request, Map.class);
-
-            // 4단계 계층형 JSON 텍스트 파싱 로직
-            if (response != null && response.containsKey("candidates")) {
-                List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-                if (!candidates.isEmpty()) {
-                    Map<String, Object> firstCandidate = candidates.get(0);
-                    if (firstCandidate.containsKey("content")) {
-                        Map<String, Object> content = (Map<String, Object>) firstCandidate.get("content");
-                        if (content.containsKey("parts")) {
-                            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-                            if (!parts.isEmpty()) {
-                                String aiText = (String) parts.get(0).get("text");
-                                return new ReportResponse(aiText); // 🎯 성공 반환!
-                            }
-                        }
-                    }
-                }
-            }
-
-            return new ReportResponse("AI 응답 포맷을 파싱할 수 없습니다. 응답 구조를 확인해 주세요.");
-
-        } catch (HttpClientErrorException e) {
-            System.out.println("======  구글 제미나이 API 에러 발생! ======");
-            System.out.println("에러 코드: " + e.getStatusCode());
-            System.out.println("구글 메시지: " + e.getResponseBodyAsString());
-            return new ReportResponse("구글 API 에러: " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new ReportResponse("AI 리포트를 생성하는 중 내부 시스템 오류가 발생했습니다.");
+            String response = geminiClient.generate(PROMPT_TEMPLATE.formatted(targetMonth, expenditureData));
+            ReportResponse result = parseResponse(response);
+            validateResult(targetMonth, result);
+            return result;
+        } catch (GeneralException exception) {
+            throw exception;
+        } catch (JsonProcessingException exception) {
+            log.warn("Gemini 소비 리포트 응답 역직렬화 실패", exception);
+            throw new GeneralException(GeneralErrorCode.AI_REPORT_RESPONSE_INVALID);
+        } catch (RuntimeException exception) {
+            log.warn("Gemini 소비 리포트 생성 실패", exception);
+            throw new GeneralException(GeneralErrorCode.AI_REPORT_GENERATION_FAILED);
         }
+    }
+
+    private void validateRequest(String targetMonth, String expenditureData) {
+        if (targetMonth == null || !TARGET_MONTH_PATTERN.matcher(targetMonth).matches()
+                || expenditureData == null || expenditureData.isBlank()) {
+            throw new GeneralException(GeneralErrorCode.BAD_REQUEST);
+        }
+    }
+
+    private ReportResponse parseResponse(String response) throws JsonProcessingException {
+        if (response == null || response.isBlank()) {
+            throw new GeneralException(GeneralErrorCode.AI_REPORT_GENERATION_FAILED);
+        }
+        return objectMapper.readValue(response, ReportResponse.class);
+    }
+
+    private void validateResult(String targetMonth, ReportResponse result) {
+        if (result == null
+                || !targetMonth.equals(result.targetMonth())
+                || result.totalAmount() == null || result.totalAmount() < 0
+                || result.transactionCount() == null || result.transactionCount() < 0
+                || isBlank(result.anomalyReason())
+                || !validTimeAnalysis(result.frequentSpendingTime(), result.transactionCount(), result.totalAmount())
+                || !validDayAnalysis(result.frequentSpendingDay(), result.transactionCount(), result.totalAmount())
+                || !validCategoryAnalysis(result.topCategory(), result.totalAmount())
+                || result.spendingPatternInsights() == null
+                || result.spendingPatternInsights().isEmpty()
+                || result.spendingPatternInsights().size() > 3
+                || result.spendingPatternInsights().stream().anyMatch(this::isBlank)
+                || isBlank(result.summary())) {
+            throw new GeneralException(GeneralErrorCode.AI_REPORT_RESPONSE_INVALID);
+        }
+    }
+
+    private boolean validTimeAnalysis(
+            ReportResponse.TimeAnalysis analysis,
+            int totalTransactionCount,
+            long totalAmount
+    ) {
+        return analysis != null
+                && validTimeRange(analysis.timeRange())
+                && analysis.transactionCount() != null && analysis.transactionCount() >= 0
+                && analysis.transactionCount() <= totalTransactionCount
+                && analysis.amount() != null && analysis.amount() >= 0
+                && analysis.amount() <= totalAmount
+                && (!NO_INFORMATION.equals(analysis.timeRange())
+                || (analysis.transactionCount() == 0 && analysis.amount() == 0))
+                && !isBlank(analysis.description());
+    }
+
+    private boolean validDayAnalysis(
+            ReportResponse.DayAnalysis analysis,
+            int totalTransactionCount,
+            long totalAmount
+    ) {
+        return analysis != null
+                && analysis.dayOfWeek() != null
+                && DAYS.contains(analysis.dayOfWeek())
+                && analysis.transactionCount() != null && analysis.transactionCount() >= 0
+                && analysis.transactionCount() <= totalTransactionCount
+                && analysis.amount() != null && analysis.amount() >= 0
+                && analysis.amount() <= totalAmount
+                && (!NO_INFORMATION.equals(analysis.dayOfWeek())
+                || (analysis.transactionCount() == 0 && analysis.amount() == 0))
+                && !isBlank(analysis.description());
+    }
+
+    private boolean validCategoryAnalysis(ReportResponse.CategoryAnalysis analysis, long totalAmount) {
+        if (analysis == null
+                || isBlank(analysis.categoryName())
+                || analysis.amount() == null || analysis.amount() < 0 || analysis.amount() > totalAmount
+                || analysis.percentage() == null || !Double.isFinite(analysis.percentage())
+                || analysis.percentage() < 0.0 || analysis.percentage() > 100.0
+                || isBlank(analysis.description())) {
+            return false;
+        }
+
+        if (totalAmount == 0) {
+            return NO_INFORMATION.equals(analysis.categoryName())
+                    && analysis.amount() == 0
+                    && analysis.percentage() == 0.0;
+        }
+
+        double expectedPercentage = analysis.amount() * 100.0 / totalAmount;
+        return analysis != null
+                && (!NO_INFORMATION.equals(analysis.categoryName())
+                || (analysis.amount() == 0 && analysis.percentage() == 0.0))
+                && Math.abs(analysis.percentage() - expectedPercentage) <= PERCENTAGE_TOLERANCE;
+    }
+
+    private boolean validTimeRange(String timeRange) {
+        if (NO_INFORMATION.equals(timeRange)) {
+            return true;
+        }
+        if (timeRange == null || !TIME_RANGE_PATTERN.matcher(timeRange).matches()) {
+            return false;
+        }
+
+        String[] times = timeRange.split("~", -1);
+        LocalTime start = LocalTime.parse(times[0], TIME_FORMATTER);
+        LocalTime end = LocalTime.parse(times[1], TIME_FORMATTER);
+        return !start.equals(end) && start.plusHours(3).equals(end);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
