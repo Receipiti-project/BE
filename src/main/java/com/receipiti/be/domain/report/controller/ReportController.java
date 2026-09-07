@@ -1,30 +1,27 @@
 package com.receipiti.be.domain.report.controller;
 
 import com.receipiti.be.domain.report.docs.ReportApiDocs;
-import com.receipiti.be.domain.report.dto.request.ReportCreateRequest;
 import com.receipiti.be.domain.report.dto.response.ReportResponse;
-import com.receipiti.be.domain.report.service.GeminiService;
-import jakarta.validation.Valid;
+import com.receipiti.be.domain.report.service.ReportService;
+import com.receipiti.be.domain.member.entity.Member;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1")
 public class ReportController implements ReportApiDocs {
 
-    private final GeminiService geminiService;
+    private final ReportService reportService;
 
-    public ReportController(GeminiService geminiService) {
-        this.geminiService = geminiService;
+    public ReportController(ReportService reportService) {
+        this.reportService = reportService;
     }
 
     @Override
     @PostMapping("/report")
     public ReportResponse createReport(
-            @RequestParam String month,
-            @Valid @RequestBody ReportCreateRequest request) {
-
-        // 실제로는 DB에서 해당 월의 회원의 지출 데이터를 꺼내와서 넘겨주는 로직이 들어갈 예정입니다.
-        // 지금은 테스트를 위해 가상의 데이터를 넣었습니다.
-        return geminiService.generateExpenditureReport(month, request.getExpenditureData());
+            @AuthenticationPrincipal Member member,
+            @RequestParam String month) {
+        return reportService.createReport(member, month);
     }
 }
