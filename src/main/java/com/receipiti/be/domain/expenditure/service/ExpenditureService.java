@@ -49,7 +49,7 @@ public class ExpenditureService {
     private final CategorySelectionHistoryService categorySelectionHistoryService;
     private final PersonalizedCategoryService personalizedCategoryService;
 
-    private final NaverOcrHandler naverOcrHandler;
+    private final ReceiptAnalysisService receiptAnalysisService;
 
     public ExpenditureCreateResponse createExpenditure(Member member, ExpenditureCreateRequest request) {
         String storeName = request.getStoreName().trim();
@@ -362,7 +362,7 @@ public class ExpenditureService {
     }
 
     public OcrResponse extractTextFromReceipt(MultipartFile file) {
-        return naverOcrHandler.executeOcr(file);
+        return receiptAnalysisService.analyze(file);
     }
 
     private record CategoryResolution(
