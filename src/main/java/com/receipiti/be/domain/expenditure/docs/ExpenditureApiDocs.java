@@ -69,7 +69,10 @@ public interface ExpenditureApiDocs {
             Long id
     );
 
-    @Operation(summary = "영수증 OCR 텍스트 추출", description = "영수증 사진을 받아 상호명, 금액, 날짜를 추출합니다.")
+    @Operation(
+            summary = "영수증 OCR 텍스트 추출",
+            description = "영수증 사진에서 상호명, 금액, 날짜를 추출합니다. OCR 결과가 불완전하거나 신뢰도가 낮으면 Gemini Vision으로 보정합니다."
+    )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(description = "추출된 영수증 가계부 데이터를 반환합니다.")
     ResponseEntity<OcrResponse> extractTextFromReceipt(
             org.springframework.web.multipart.MultipartFile file

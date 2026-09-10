@@ -8,6 +8,7 @@ import com.receipiti.be.global.apiPayload.exception.GeneralException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -21,6 +22,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -29,6 +31,10 @@ import java.util.regex.Pattern;
 @Component
 @Slf4j
 public class NaverOcrHandler {
+
+    private static final Set<String> RECEIPT_HEADER_WORDS = Set.of(
+            "영수증", "카드판매", "카드판매영수증", "고객용", "매장명", "가맹점명"
+    );
 
     private final RestTemplate restTemplate = new  RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -73,6 +79,8 @@ public class NaverOcrHandler {
 
             return parseOcrResponse(responseEntity.getBody());
 
+        } catch (GeneralException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Naver OCR API 호출 실패: ", e);
             throw new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR);
@@ -84,10 +92,14 @@ public class NaverOcrHandler {
         return filename.substring(filename.lastIndexOf(".") + 1);
     }
 
-    private OcrResponse parseOcrResponse(String jsonResponseBody) {
+    OcrResponse parseOcrResponse(String jsonResponseBody) {
         try {
             JsonNode root = objectMapper.readTree(jsonResponseBody);
-            JsonNode fields = root.path("images").get(0).path("fields");
+            JsonNode images = root.path("images");
+            if (!images.isArray() || images.isEmpty()) {
+                throw new GeneralException(GeneralErrorCode.RECEIPT_INFORMATION_INSUFFICIENT);
+            }
+            JsonNode fields = images.get(0).path("fields");
 
             StringBuilder fullTextBuilder = new StringBuilder();
             if (fields.isArray()) {
@@ -99,20 +111,27 @@ public class NaverOcrHandler {
 
             String storeName = "알 수 없는 상호명";
             Long totalPrice = 0L;
-            LocalDateTime paymentDate = LocalDateTime.now();
+            LocalDateTime paymentDate = null;
+            double confidenceSum = 0.0;
+            int confidenceCount = 0;
 
             // 상호명 추출
             if (fullText.contains("[매장명]") || fullText.contains("[가맹점명]")) {
-                Pattern storePattern = Pattern.compile("(?:\\[매장명\\]|\\[가맹점명\\])\\s*:?\\s*([^\\s/]+)");
+                Pattern storePattern = Pattern.compile(
+                        "(?:\\[매장명\\]|\\[가맹점명\\])\\s*:?\\s*(.+?)(?=\\s*(?:\\[|사업자|대표|주소|전화|일시|승인|$))"
+                );
                 Matcher storeMatcher = storePattern.matcher(fullText);
                 if (storeMatcher.find()) {
-                    storeName = storeMatcher.group(1).trim();
+                    String candidate = normalizeStoreName(storeMatcher.group(1));
+                    if (isMeaningfulStoreName(candidate)) {
+                        storeName = candidate;
+                    }
                 }
             } else if (fields.size() > 0) {
                 for (JsonNode field : fields) {
-                    String firstText = field.path("inferText").asText("").trim();
-                    if (!firstText.equals("[영수증]") && !firstText.equals("영수증") && !firstText.isEmpty()) {
-                        storeName = firstText;
+                    String candidate = normalizeStoreName(field.path("inferText").asText(""));
+                    if (isMeaningfulStoreName(candidate)) {
+                        storeName = candidate;
                         break;
                     }
                 }
@@ -134,7 +153,11 @@ public class NaverOcrHandler {
                     minute = Integer.parseInt(timeMatcher.group(2));
                     second = Integer.parseInt(timeMatcher.group(3));
                 }
-                paymentDate = LocalDateTime.of(year, month, day, hour, minute, second);
+                try {
+                    paymentDate = LocalDateTime.of(year, month, day, hour, minute, second);
+                } catch (DateTimeException ignored) {
+                    paymentDate = null;
+                }
             }
 
             // 금액 추출
@@ -150,25 +173,87 @@ public class NaverOcrHandler {
 
             if (totalPrice == 0L) {
                 for (JsonNode field : fields) {
-                    String text = field.path("inferText").asText("").replaceAll("[^0-9]", "");
-                    if (!text.isEmpty() && text.length() >= 4 && text.length() <= 6) {
-                        Long tempPrice = Long.parseLong(text);
-                        if (tempPrice > totalPrice && tempPrice != 500000L) {
+                    String rawText = field.path("inferText").asText("").trim();
+                    if (isPossiblePrice(rawText)) {
+                        Long tempPrice = Long.parseLong(rawText.replaceAll("[^0-9]", ""));
+                        if (tempPrice > totalPrice) {
                             totalPrice = tempPrice;
                         }
                     }
                 }
             }
 
+            for (JsonNode field : fields) {
+                JsonNode inferConfidence = field.get("inferConfidence");
+                if (inferConfidence != null && inferConfidence.isNumber()) {
+                    confidenceSum += inferConfidence.asDouble();
+                    confidenceCount++;
+                }
+            }
+            double confidence = confidenceCount == 0 ? 0.0 : confidenceSum / confidenceCount;
+            if ("알 수 없는 상호명".equals(storeName) || totalPrice <= 0 || paymentDate == null) {
+                confidence = Math.min(confidence, 0.5);
+            }
+
             return OcrResponse.builder()
                     .storeName(storeName)
                     .amount(totalPrice)
                     .paymentDate(paymentDate)
+                    .confidence(confidence)
+                    .correctedByLlm(false)
                     .build();
 
+        } catch (GeneralException e) {
+            throw e;
         } catch (Exception e) {
             log.error("OCR 결과 파싱 실패: ", e);
             throw new GeneralException(GeneralErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private String normalizeStoreName(String value) {
+        return value
+                .replaceAll("\\s*[/|]?\\s*\\d{3}-\\d{2}-\\d{5}\\s*$", "")
+                .replaceAll("\\s*\\([A-Za-z][A-Za-z\\s.-]*\\)\\s*$", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private boolean isMeaningfulStoreName(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+
+        String comparable = value
+                .replaceAll("[^가-힣A-Za-z0-9]", "")
+                .toLowerCase();
+        if (comparable.length() < 2 || RECEIPT_HEADER_WORDS.contains(comparable)) {
+            return false;
+        }
+        return !comparable.startsWith("사업자번호")
+                && !comparable.startsWith("대표자")
+                && !comparable.startsWith("전화")
+                && !comparable.startsWith("주소")
+                && !comparable.startsWith("판매시간")
+                && !comparable.startsWith("승인번호");
+    }
+
+    private boolean isPossiblePrice(String text) {
+        if (text.isBlank()
+                || text.contains(":")
+                || text.matches(".*\\d{2,4}[-./]\\d{1,2}[-./]\\d{1,2}.*")
+                || text.matches(".*\\d{2,4}-\\d{2,4}-\\d{4}.*")
+                || text.matches(".*(?:사업자|전화|승인|카드|일시).*")) {
+            return false;
+        }
+
+        String digits = text.replaceAll("[^0-9]", "");
+        if (digits.length() < 3 || digits.length() > 8) {
+            return false;
+        }
+        long amount = Long.parseLong(digits);
+        return amount > 0
+                && amount <= 100_000_000L
+                && (text.contains(",") || text.matches(".*\\d\\s*원.*"));
     }
 }

@@ -53,7 +53,7 @@ class ExpenditureServiceTest {
     @Mock
     private PersonalizedCategoryService personalizedCategoryService;
     @Mock
-    private NaverOcrHandler naverOcrHandler;
+    private ReceiptAnalysisService receiptAnalysisService;
     @InjectMocks
     private ExpenditureService expenditureService;
 

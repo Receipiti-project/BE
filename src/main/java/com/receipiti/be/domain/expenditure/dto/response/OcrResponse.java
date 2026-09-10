@@ -15,4 +15,6 @@ public class OcrResponse {
     private String storeName;
     private Long amount;
     private LocalDateTime paymentDate;
+    private Double confidence;
+    private Boolean correctedByLlm;
 }
