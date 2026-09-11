@@ -12,11 +12,33 @@
 sudo cp deploy/nginx/receipiti-upload.conf /etc/nginx/conf.d/receipiti-upload.conf
 sudo nginx -t
 sudo systemctl reload nginx
+sudo nginx -T | grep -n client_max_body_size
 ```
 
-Nginx를 Docker로 실행하는 경우에는
-`deploy/nginx/receipiti-upload.conf`를 컨테이너의
-`/etc/nginx/conf.d/receipiti-upload.conf`에 마운트한 뒤 컨테이너를 재시작합니다.
+현재 저장소의 `docker-compose.yml`에는 Nginx 서비스가 없으므로, 배포 서버에서
+Nginx를 직접 실행한다면 위 명령을 사용합니다.
+
+Nginx를 Docker Compose로 운영하는 경우에는 해당 Compose 파일의 `nginx`
+서비스에 다음 읽기 전용 마운트를 추가합니다.
+
+```yaml
+services:
+  nginx:
+    volumes:
+      - ./deploy/nginx/receipiti-upload.conf:/etc/nginx/conf.d/receipiti-upload.conf:ro
+```
+
+설정을 추가한 뒤 Nginx 컨테이너를 재생성하고, 컨테이너 내부에 설정이 실제로
+반영됐는지 확인합니다.
+
+```bash
+docker compose up -d --force-recreate nginx
+docker compose exec nginx nginx -t
+docker compose exec nginx nginx -T | grep -n client_max_body_size
+```
+
+출력에 `client_max_body_size 25m;`가 표시되어야 합니다. 실제 Compose 서비스명이
+`nginx`가 아니라면 위 명령의 `nginx`를 해당 서비스명으로 변경합니다.
 
 현재 Nginx 요청 제한은 Spring의
 `spring.servlet.multipart.max-request-size=25MB`와 동일한 25MB입니다.
