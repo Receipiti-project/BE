@@ -3,6 +3,7 @@ package com.receipiti.be.domain.expenditure.controller;
 import com.receipiti.be.domain.expenditure.docs.ExpenditureApiDocs;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
+import com.receipiti.be.domain.expenditure.dto.request.CardMessageParseRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
@@ -11,6 +12,7 @@ import com.receipiti.be.domain.expenditure.dto.response.ConsumptionRouteResponse
 import com.receipiti.be.domain.expenditure.dto.response.OcrResponse;
 import com.receipiti.be.domain.expenditure.dto.response.CardNotificationAnalysisResponse;
 import com.receipiti.be.domain.expenditure.service.CardNotificationAnalysisService;
+import com.receipiti.be.domain.expenditure.service.CardMessageParseService;
 import com.receipiti.be.domain.expenditure.service.ConsumptionRouteService;
 import com.receipiti.be.domain.expenditure.service.ExpenditureService;
 import com.receipiti.be.domain.member.entity.Member;
@@ -42,6 +44,7 @@ public class ExpenditureController implements ExpenditureApiDocs {
     private final ExpenditureService expenditureService;
     private final ConsumptionRouteService consumptionRouteService;
     private final CardNotificationAnalysisService cardNotificationAnalysisService;
+    private final CardMessageParseService cardMessageParseService;
 
     @Override
     @PostMapping
@@ -128,5 +131,23 @@ public class ExpenditureController implements ExpenditureApiDocs {
             @RequestParam("file") MultipartFile file
     ) {
         return ResponseEntity.ok(cardNotificationAnalysisService.analyze(file));
+    }
+
+    @Override
+    @PostMapping(value = "/message/parse", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CardNotificationAnalysisResponse> parseCardMessage(
+            @AuthenticationPrincipal Member member,
+            @RequestBody @Valid CardMessageParseRequest request
+    ) {
+        return ResponseEntity.ok(cardMessageParseService.parse(member, request));
+    }
+
+    @Override
+    @PostMapping(value = "/message/parse", consumes = MediaType.TEXT_PLAIN_VALUE)
+    public ResponseEntity<CardNotificationAnalysisResponse> parseRawCardMessage(
+            @AuthenticationPrincipal Member member,
+            @RequestBody String message
+    ) {
+        return ResponseEntity.ok(cardMessageParseService.parseRaw(member, message));
     }
 }
