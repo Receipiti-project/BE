@@ -17,6 +17,7 @@ public record CardMessageParseRequest(
         LocalDateTime receivedAt,
 
         @NotBlank
+        @Size(max = 100)
         @Schema(description = "iOS 단축어 등 호출 측에서 생성한 고유 요청 ID", example = "ios-shortcut-550e8400")
         String externalId
 ) {

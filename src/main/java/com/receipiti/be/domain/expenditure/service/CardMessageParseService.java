@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CardMessageParseService {
 
+    private static final int MAX_MESSAGE_LENGTH = 100;
+    private static final int MAX_EXTERNAL_ID_LENGTH = 100;
     private static final Pattern AMOUNT_PATTERN = Pattern.compile("(?<![\\d,])(\\d{1,3}(?:,\\d{3})+|\\d+)\\s*원");
     private static final Pattern DATE_TIME_PATTERN = Pattern.compile("(?:(\\d{4})[./-])?(\\d{1,2})[./-](\\d{1,2})\\s+(\\d{1,2}):(\\d{2})");
     private static final Pattern COMPANY_PATTERN = Pattern.compile("\\[([^]\\r\\n]{1,20}?(?:카드|CARD))]", Pattern.CASE_INSENSITIVE);
@@ -44,6 +46,9 @@ public class CardMessageParseService {
     @Transactional
     public CardNotificationAnalysisResponse parse(Member member, CardMessageParseRequest request) {
         String externalId = request.externalId().trim();
+        if (request.message().length() > MAX_MESSAGE_LENGTH || externalId.length() > MAX_EXTERNAL_ID_LENGTH) {
+            throw new GeneralException(GeneralErrorCode.BAD_REQUEST);
+        }
         if (requestRepository.existsByMemberAndExternalId(member, externalId)) {
             throw new GeneralException(GeneralErrorCode.CARD_MESSAGE_DUPLICATE);
         }
@@ -76,6 +81,9 @@ public class CardMessageParseService {
     public CardNotificationAnalysisResponse parseRaw(Member member, String message) {
         if (message == null || message.isBlank()) {
             throw new GeneralException(GeneralErrorCode.CARD_MESSAGE_INFORMATION_INSUFFICIENT);
+        }
+        if (message.length() > MAX_MESSAGE_LENGTH) {
+            throw new GeneralException(GeneralErrorCode.BAD_REQUEST);
         }
         String normalized = normalize(message);
         return parse(member, new CardMessageParseRequest(
@@ -158,7 +166,11 @@ public class CardMessageParseService {
     private String findCardCompany(String message) {
         Matcher matcher = COMPANY_PATTERN.matcher(message);
         if (matcher.find()) {
-            return matcher.group(1).trim();
+            String bracketCompany = matcher.group(1).trim();
+            return CARD_COMPANIES.stream()
+                    .filter(company -> company.equalsIgnoreCase(bracketCompany))
+                    .findFirst()
+                    .orElse(null);
         }
         Matcher compactMatcher = COMPACT_COMPANY_PATTERN.matcher(message);
         if (compactMatcher.find()) {

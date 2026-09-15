@@ -125,6 +125,40 @@ class CardMessageParseServiceTest {
         verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
     }
 
+    @Test
+    void 지원하지_않는_대괄호_카드명은_거절한다() {
+        assertThatThrownBy(() -> service.parse(
+                member,
+                request("[멤버십카드] 09/11 18:30 스타벅스 5,500원 승인", "unsupported-company")
+        ))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.CARD_MESSAGE_UNSUPPORTED);
+    }
+
+    @Test
+    void externalId가_100자를_초과하면_저장하지_않고_거절한다() {
+        assertThatThrownBy(() -> service.parse(
+                member,
+                request("[신한카드] 09/11 18:30 스타벅스 5,500원 승인", "a".repeat(101))
+        ))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.BAD_REQUEST);
+
+        verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void textPlain_문자가_100자를_초과하면_파싱하지_않고_거절한다() {
+        assertThatThrownBy(() -> service.parseRaw(member, "a".repeat(101)))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.BAD_REQUEST);
+
+        verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
     private CardMessageParseRequest request(String message, String externalId) {
         return new CardMessageParseRequest(
                 message,
