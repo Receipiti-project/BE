@@ -2,6 +2,7 @@ package com.receipiti.be.domain.expenditure.docs;
 
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureCreateRequest;
 import com.receipiti.be.domain.expenditure.dto.request.ExpenditureUpdateRequest;
+import com.receipiti.be.domain.expenditure.dto.request.CardMessageParseRequest;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureCreateResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureDetailResponse;
 import com.receipiti.be.domain.expenditure.dto.response.ExpenditureListResponse;
@@ -86,5 +87,28 @@ public interface ExpenditureApiDocs {
     ResponseEntity<CardNotificationAnalysisResponse> analyzeCardNotification(
             @Parameter(description = "카드 결제 알림 캡처 이미지")
             org.springframework.web.multipart.MultipartFile file
+    );
+
+    @Operation(
+            summary = "카드 결제 문자 분석",
+            description = "iOS 단축어 또는 클립보드로 전달한 카드 승인/취소 문자를 분석합니다. 분석 결과만 반환하며 지출은 저장하지 않습니다. externalId는 사용자별로 중복 처리되지 않습니다."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(description = "파싱된 카드 결제 정보")
+    ResponseEntity<CardNotificationAnalysisResponse> parseCardMessage(
+            @Parameter(hidden = true) Member member,
+            CardMessageParseRequest request
+    );
+
+    @Operation(
+            summary = "카드 결제 문자 원문 분석",
+            description = "문자 원문을 text/plain으로 그대로 전달합니다. 수신 시각과 중복 확인 ID는 서버에서 자동 생성합니다."
+    )
+    ResponseEntity<CardNotificationAnalysisResponse> parseRawCardMessage(
+            @Parameter(hidden = true) Member member,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "카드 결제 문자 원문",
+                    required = true
+            )
+            String message
     );
 }

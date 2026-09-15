@@ -1,0 +1,191 @@
+package com.receipiti.be.domain.expenditure.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+import com.receipiti.be.domain.expenditure.dto.request.CardMessageParseRequest;
+import com.receipiti.be.domain.expenditure.dto.response.CardNotificationAnalysisResponse;
+import com.receipiti.be.domain.expenditure.repository.CardMessageParseRequestRepository;
+import com.receipiti.be.domain.member.entity.Member;
+import com.receipiti.be.global.apiPayload.code.GeneralErrorCode;
+import com.receipiti.be.global.apiPayload.exception.GeneralException;
+import java.time.LocalDateTime;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+class CardMessageParseServiceTest {
+
+    private CardMessageParseRequestRepository repository;
+    private CardMessageParseService service;
+    private Member member;
+
+    @BeforeEach
+    void setUp() {
+        repository = mock(CardMessageParseRequestRepository.class);
+        service = new CardMessageParseService(repository);
+        member = mock(Member.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("approvalMessages")
+    void 카드사별_승인_문자를_파싱한다(String message, String company, String storeName) {
+        CardMessageParseRequest request = request(message, "request-1");
+
+        CardNotificationAnalysisResponse response = service.parse(member, request);
+
+        assertThat(response.paymentNotification()).isTrue();
+        assertThat(response.cardCompany()).isEqualTo(company);
+        assertThat(response.storeName()).isEqualTo(storeName);
+        assertThat(response.amount()).isEqualTo(5_500L);
+        assertThat(response.paymentDateTime()).isEqualTo("2026-09-11T18:30");
+        assertThat(response.approvalStatus()).isEqualTo("APPROVED");
+        verify(repository).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void 승인_취소_문자를_파싱한다() {
+        CardNotificationAnalysisResponse response = service.parse(
+                member,
+                request("[삼성카드] 09/11 18:30 스타벅스 5,500원 승인취소", "cancel-1")
+        );
+
+        assertThat(response.approvalStatus()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    void 신한카드_실제_문자_원문만으로_파싱한다() {
+        String message = """
+                [Web발신]
+                [신한체크승인] 황*빈(1620) 09/04 21:57 (금액)54,000원 (주)씨브이코퍼레이션 남영
+                """;
+
+        CardNotificationAnalysisResponse response = service.parseRaw(member, message);
+
+        assertThat(response.cardCompany()).isEqualTo("신한카드");
+        assertThat(response.storeName()).isEqualTo("(주)씨브이코퍼레이션 남영");
+        assertThat(response.amount()).isEqualTo(54_000L);
+        assertThat(response.approvalStatus()).isEqualTo("APPROVED");
+    }
+
+    @ParameterizedTest
+    @MethodSource("compactApprovalMessages")
+    void 카드사별_축약형_승인_문자를_공통_규칙으로_파싱한다(String message, String company) {
+
+        CardNotificationAnalysisResponse response = service.parseRaw(member, message);
+
+        assertThat(response.cardCompany()).isEqualTo(company);
+        assertThat(response.storeName()).isEqualTo("카카오T일반택시_0");
+        assertThat(response.amount()).isEqualTo(9_400L);
+        assertThat(response.paymentDateTime()).endsWith("-09-13T01:28");
+        assertThat(response.approvalStatus()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void 연도_없는_미래_날짜는_직전_연도로_보정한다() {
+        CardMessageParseRequest request = new CardMessageParseRequest(
+                "[신한카드] 12/31 23:50 편의점 5,500원 승인",
+                LocalDateTime.of(2027, 1, 1, 0, 1),
+                "new-year-1"
+        );
+
+        CardNotificationAnalysisResponse response = service.parse(member, request);
+
+        assertThat(response.paymentDateTime()).isEqualTo("2026-12-31T23:50");
+    }
+
+    @Test
+    void 같은_사용자의_externalId가_중복되면_거절한다() {
+        given(repository.existsByMemberAndExternalId(member, "duplicate-1")).willReturn(true);
+
+        assertThatThrownBy(() -> service.parse(
+                member,
+                request("[신한카드] 09/11 18:30 스타벅스 5,500원 승인", "duplicate-1")
+        ))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.CARD_MESSAGE_DUPLICATE);
+    }
+
+    @Test
+    void 카드_결제_문자가_아니면_거절하고_externalId를_저장하지_않는다() {
+        assertThatThrownBy(() -> service.parse(member, request("택배가 도착했습니다.", "unsupported-1")))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.CARD_MESSAGE_UNSUPPORTED);
+
+        verify(repository).existsByMemberAndExternalId(member, "unsupported-1");
+        verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void 지원하지_않는_대괄호_카드명은_거절한다() {
+        assertThatThrownBy(() -> service.parse(
+                member,
+                request("[멤버십카드] 09/11 18:30 스타벅스 5,500원 승인", "unsupported-company")
+        ))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.CARD_MESSAGE_UNSUPPORTED);
+    }
+
+    @Test
+    void externalId가_100자를_초과하면_저장하지_않고_거절한다() {
+        assertThatThrownBy(() -> service.parse(
+                member,
+                request("[신한카드] 09/11 18:30 스타벅스 5,500원 승인", "a".repeat(101))
+        ))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.BAD_REQUEST);
+
+        verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void textPlain_문자가_100자를_초과하면_파싱하지_않고_거절한다() {
+        assertThatThrownBy(() -> service.parseRaw(member, "a".repeat(101)))
+                .isInstanceOf(GeneralException.class)
+                .extracting(exception -> ((GeneralException) exception).getCode())
+                .isEqualTo(GeneralErrorCode.BAD_REQUEST);
+
+        verify(repository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    private CardMessageParseRequest request(String message, String externalId) {
+        return new CardMessageParseRequest(
+                message,
+                LocalDateTime.of(2026, 9, 11, 18, 30, 10),
+                externalId
+        );
+    }
+
+    private static Stream<Arguments> approvalMessages() {
+        return Stream.of(
+                Arguments.of("[신한카드] 09/11 18:30 스타벅스 5,500원 승인", "신한카드", "스타벅스"),
+                Arguments.of("[KB국민카드] 09/11 18:30 편의점 5,500원 승인", "KB국민카드", "편의점"),
+                Arguments.of("삼성카드 09/11 18:30 서점 5,500원 승인", "삼성카드", "서점")
+        );
+    }
+
+    private static Stream<Arguments> compactApprovalMessages() {
+        return Stream.of(
+                Arguments.of("[Web발신] 하나6*3*체크승인 엄*서 9,400원09/13 01:28 카카오T일반택시_0", "하나카드"),
+                Arguments.of("[Web발신] 신한1234체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "신한카드"),
+                Arguments.of("[Web발신] KB국민1*2*승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "KB국민카드"),
+                Arguments.of("[Web발신] 삼성12**신용승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "삼성카드"),
+                Arguments.of("[Web발신] 현대1*2*승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "현대카드"),
+                Arguments.of("[Web발신] 롯데1234체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "롯데카드"),
+                Arguments.of("[Web발신] 우리1*2*체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "우리카드"),
+                Arguments.of("[Web발신] NH농협1234체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "NH농협카드"),
+                Arguments.of("[Web발신] BC1*2*승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "BC카드")
+        );
+    }
+}
