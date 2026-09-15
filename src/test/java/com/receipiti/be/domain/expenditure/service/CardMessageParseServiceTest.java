@@ -75,6 +75,19 @@ class CardMessageParseServiceTest {
         assertThat(response.approvalStatus()).isEqualTo("APPROVED");
     }
 
+    @ParameterizedTest
+    @MethodSource("compactApprovalMessages")
+    void 카드사별_축약형_승인_문자를_공통_규칙으로_파싱한다(String message, String company) {
+
+        CardNotificationAnalysisResponse response = service.parseRaw(member, message);
+
+        assertThat(response.cardCompany()).isEqualTo(company);
+        assertThat(response.storeName()).isEqualTo("카카오T일반택시_0");
+        assertThat(response.amount()).isEqualTo(9_400L);
+        assertThat(response.paymentDateTime()).endsWith("-09-13T01:28");
+        assertThat(response.approvalStatus()).isEqualTo("APPROVED");
+    }
+
     @Test
     void 연도_없는_미래_날짜는_직전_연도로_보정한다() {
         CardMessageParseRequest request = new CardMessageParseRequest(
@@ -125,6 +138,20 @@ class CardMessageParseServiceTest {
                 Arguments.of("[신한카드] 09/11 18:30 스타벅스 5,500원 승인", "신한카드", "스타벅스"),
                 Arguments.of("[KB국민카드] 09/11 18:30 편의점 5,500원 승인", "KB국민카드", "편의점"),
                 Arguments.of("삼성카드 09/11 18:30 서점 5,500원 승인", "삼성카드", "서점")
+        );
+    }
+
+    private static Stream<Arguments> compactApprovalMessages() {
+        return Stream.of(
+                Arguments.of("[Web발신] 하나6*3*체크승인 엄*서 9,400원09/13 01:28 카카오T일반택시_0", "하나카드"),
+                Arguments.of("[Web발신] 신한1234체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "신한카드"),
+                Arguments.of("[Web발신] KB국민1*2*승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "KB국민카드"),
+                Arguments.of("[Web발신] 삼성12**신용승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "삼성카드"),
+                Arguments.of("[Web발신] 현대1*2*승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "현대카드"),
+                Arguments.of("[Web발신] 롯데1234체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "롯데카드"),
+                Arguments.of("[Web발신] 우리1*2*체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "우리카드"),
+                Arguments.of("[Web발신] NH농협1234체크승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "NH농협카드"),
+                Arguments.of("[Web발신] BC1*2*승인 엄*서 9,400원 09/13 01:28 카카오T일반택시_0", "BC카드")
         );
     }
 }

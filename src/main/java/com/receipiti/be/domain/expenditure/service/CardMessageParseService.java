@@ -29,6 +29,11 @@ public class CardMessageParseService {
     private static final Pattern DATE_TIME_PATTERN = Pattern.compile("(?:(\\d{4})[./-])?(\\d{1,2})[./-](\\d{1,2})\\s+(\\d{1,2}):(\\d{2})");
     private static final Pattern COMPANY_PATTERN = Pattern.compile("\\[([^]\\r\\n]{1,20}?(?:카드|CARD))]", Pattern.CASE_INSENSITIVE);
     private static final Pattern STATUS_PATTERN = Pattern.compile("승인취소|승인|취소|사용", Pattern.CASE_INSENSITIVE);
+    private static final Pattern COMPACT_COMPANY_PATTERN = Pattern.compile(
+            "(신한|KB국민|국민|삼성|현대|롯데|하나|우리|NH농협|농협|BC|비씨)"
+                    + "(?:카드|[\\d*.-]+(?:체크|신용)?|체크|신용)(?:승인취소|승인|취소|사용)",
+            Pattern.CASE_INSENSITIVE
+    );
     private static final List<String> CARD_COMPANIES = List.of(
             "신한카드", "KB국민카드", "국민카드", "삼성카드", "현대카드", "롯데카드",
             "하나카드", "우리카드", "NH농협카드", "농협카드", "BC카드", "비씨카드", "카카오뱅크", "토스뱅크"
@@ -128,12 +133,15 @@ public class CardMessageParseService {
         String remaining = message;
         remaining = removeRange(remaining, amountMatcher.start(), amountMatcher.end());
         remaining = DATE_TIME_PATTERN.matcher(remaining).replaceFirst(" ");
+        remaining = COMPACT_COMPANY_PATTERN.matcher(remaining).replaceFirst(" ");
         remaining = STATUS_PATTERN.matcher(remaining).replaceFirst(" ");
         remaining = COMPANY_PATTERN.matcher(remaining).replaceFirst(" ");
         remaining = remaining.replace(cardCompany, " ")
                 .replaceAll("\\[Web발신]", " ")
+                .replaceAll("\\[\\s*]", " ")
                 .replaceAll("\\[(?:신한|KB|국민|삼성|현대|롯데|하나|우리|NH|농협|BC|비씨)[^]]*]", " ")
                 .replaceAll("[가-힣]{1,4}[*][가-힣]{1,4}\\s*\\(\\d{3,4}\\)", " ")
+                .replaceAll("[가-힣]{1,4}[*][가-힣]{1,4}", " ")
                 .replaceAll("\\(금액\\)", " ")
                 .replaceAll("(?i)일시불|누적|잔액|체크|본인|해외|국내|결제", " ")
                 .replaceAll("(?<!\\d)\\d{2,4}[-*]\\d{2,4}(?!\\d)", " ")
@@ -152,10 +160,26 @@ public class CardMessageParseService {
         if (matcher.find()) {
             return matcher.group(1).trim();
         }
-        if (message.contains("신한체크") || message.contains("신한승인")) {
-            return "신한카드";
+        Matcher compactMatcher = COMPACT_COMPANY_PATTERN.matcher(message);
+        if (compactMatcher.find()) {
+            return canonicalCompanyName(compactMatcher.group(1));
         }
         return CARD_COMPANIES.stream().filter(message::contains).findFirst().orElse(null);
+    }
+
+    private String canonicalCompanyName(String companyPrefix) {
+        return switch (companyPrefix.toUpperCase(Locale.ROOT)) {
+            case "신한" -> "신한카드";
+            case "KB국민", "국민" -> "KB국민카드";
+            case "삼성" -> "삼성카드";
+            case "현대" -> "현대카드";
+            case "롯데" -> "롯데카드";
+            case "하나" -> "하나카드";
+            case "우리" -> "우리카드";
+            case "NH농협", "농협" -> "NH농협카드";
+            case "BC", "비씨" -> "BC카드";
+            default -> throw new GeneralException(GeneralErrorCode.CARD_MESSAGE_UNSUPPORTED);
+        };
     }
 
     private String normalize(String message) {
