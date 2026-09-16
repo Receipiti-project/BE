@@ -97,6 +97,28 @@ class GeminiServiceTest {
     }
 
     @Test
+    void 자정으로_끝나는_시간대의_24시_표기를_허용한다() {
+        given(geminiClient.generate(anyString())).willReturn(
+                validResponse(38.5).replace("18:00~21:00", "21:00~24:00")
+        );
+
+        ReportResponse response = service.generateExpenditureReport("2026-09", "식비 12000원");
+
+        assertThat(response.frequentSpendingTime().timeRange()).isEqualTo("21:00~24:00");
+    }
+
+    @Test
+    void 종료_시각을_포함하는_3시간_범위_표기를_허용한다() {
+        given(geminiClient.generate(anyString())).willReturn(
+                validResponse(38.5).replace("18:00~21:00", "18:00~20:59")
+        );
+
+        ReportResponse response = service.generateExpenditureReport("2026-09", "식비 12000원");
+
+        assertThat(response.frequentSpendingTime().timeRange()).isEqualTo("18:00~20:59");
+    }
+
+    @Test
     void 총액이_0이면_카테고리도_정보없음과_0으로_반환해야_한다() {
         given(geminiClient.generate(anyString())).willReturn(zeroAmountResponse());
 
