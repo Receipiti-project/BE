@@ -105,6 +105,16 @@ public class GeminiService {
             invalidResult("이상 소비 분석 이유가 비어 있습니다");
         }
         if (!validTimeAnalysis(result.frequentSpendingTime(), result.transactionCount(), result.totalAmount())) {
+            ReportResponse.TimeAnalysis timeAnalysis = result.frequentSpendingTime();
+            log.warn(
+                    "Gemini 시간대 분석 검증 실패: timeRange={}, transactionCount={}, amount={}, "
+                            + "totalTransactionCount={}, totalAmount={}",
+                    timeAnalysis == null ? null : timeAnalysis.timeRange(),
+                    timeAnalysis == null ? null : timeAnalysis.transactionCount(),
+                    timeAnalysis == null ? null : timeAnalysis.amount(),
+                    result.transactionCount(),
+                    result.totalAmount()
+            );
             invalidResult("주요 소비 시간대 분석이 올바르지 않습니다");
         }
         if (!validDayAnalysis(result.frequentSpendingDay(), result.transactionCount(), result.totalAmount())) {
@@ -193,7 +203,9 @@ public class GeminiService {
         LocalTime end = "24:00".equals(times[1])
                 ? LocalTime.MIDNIGHT
                 : LocalTime.parse(times[1], TIME_FORMATTER);
-        return !start.equals(end) && start.plusHours(3).equals(end);
+        LocalTime exclusiveEnd = start.plusHours(3);
+        return !start.equals(end)
+                && (exclusiveEnd.equals(end) || exclusiveEnd.minusMinutes(1).equals(end));
     }
 
     private void invalidResult(String reason) {
