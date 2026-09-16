@@ -18,7 +18,7 @@ public class GeminiService {
 
     private static final Pattern TARGET_MONTH_PATTERN = Pattern.compile("^\\d{4}-(0[1-9]|1[0-2])$");
     private static final Pattern TIME_RANGE_PATTERN = Pattern.compile(
-            "^(?:[01]\\d|2[0-3]):[0-5]\\d~(?:[01]\\d|2[0-3]):[0-5]\\d$"
+            "^(?:[01]\\d|2[0-3]):[0-5]\\d~(?:(?:[01]\\d|2[0-3]):[0-5]\\d|24:00)$"
     );
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final String NO_INFORMATION = "정보 없음";
@@ -89,20 +89,38 @@ public class GeminiService {
     }
 
     private void validateResult(String targetMonth, ReportResponse result) {
-        if (result == null
-                || !targetMonth.equals(result.targetMonth())
-                || result.totalAmount() == null || result.totalAmount() < 0
-                || result.transactionCount() == null || result.transactionCount() < 0
-                || isBlank(result.anomalyReason())
-                || !validTimeAnalysis(result.frequentSpendingTime(), result.transactionCount(), result.totalAmount())
-                || !validDayAnalysis(result.frequentSpendingDay(), result.transactionCount(), result.totalAmount())
-                || !validCategoryAnalysis(result.topCategory(), result.totalAmount())
-                || result.spendingPatternInsights() == null
+        if (result == null) {
+            invalidResult("응답이 null입니다");
+        }
+        if (!targetMonth.equals(result.targetMonth())) {
+            invalidResult("분석 대상 월이 일치하지 않습니다");
+        }
+        if (result.totalAmount() == null || result.totalAmount() < 0) {
+            invalidResult("총 지출액이 올바르지 않습니다");
+        }
+        if (result.transactionCount() == null || result.transactionCount() < 0) {
+            invalidResult("결제 건수가 올바르지 않습니다");
+        }
+        if (isBlank(result.anomalyReason())) {
+            invalidResult("이상 소비 분석 이유가 비어 있습니다");
+        }
+        if (!validTimeAnalysis(result.frequentSpendingTime(), result.transactionCount(), result.totalAmount())) {
+            invalidResult("주요 소비 시간대 분석이 올바르지 않습니다");
+        }
+        if (!validDayAnalysis(result.frequentSpendingDay(), result.transactionCount(), result.totalAmount())) {
+            invalidResult("주요 소비 요일 분석이 올바르지 않습니다");
+        }
+        if (!validCategoryAnalysis(result.topCategory(), result.totalAmount())) {
+            invalidResult("최다 소비 카테고리 분석이 올바르지 않습니다");
+        }
+        if (result.spendingPatternInsights() == null
                 || result.spendingPatternInsights().isEmpty()
                 || result.spendingPatternInsights().size() > 3
-                || result.spendingPatternInsights().stream().anyMatch(this::isBlank)
-                || isBlank(result.summary())) {
-            throw new GeneralException(GeneralErrorCode.AI_REPORT_RESPONSE_INVALID);
+                || result.spendingPatternInsights().stream().anyMatch(this::isBlank)) {
+            invalidResult("소비 패턴 인사이트가 올바르지 않습니다");
+        }
+        if (isBlank(result.summary())) {
+            invalidResult("리포트 요약이 비어 있습니다");
         }
     }
 
@@ -172,8 +190,15 @@ public class GeminiService {
 
         String[] times = timeRange.split("~", -1);
         LocalTime start = LocalTime.parse(times[0], TIME_FORMATTER);
-        LocalTime end = LocalTime.parse(times[1], TIME_FORMATTER);
+        LocalTime end = "24:00".equals(times[1])
+                ? LocalTime.MIDNIGHT
+                : LocalTime.parse(times[1], TIME_FORMATTER);
         return !start.equals(end) && start.plusHours(3).equals(end);
+    }
+
+    private void invalidResult(String reason) {
+        log.warn("Gemini 소비 리포트 응답 검증 실패: {}", reason);
+        throw new GeneralException(GeneralErrorCode.AI_REPORT_RESPONSE_INVALID);
     }
 
     private boolean isBlank(String value) {
