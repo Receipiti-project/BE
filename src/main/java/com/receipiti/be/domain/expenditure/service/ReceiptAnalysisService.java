@@ -32,7 +32,13 @@ public class ReceiptAnalysisService {
             이미지에 실제로 표시된 값만 사용하여 결제 정보를 추출하세요.
 
             규칙:
-            - storeName은 영수증 상단의 가맹점명 또는 매장명입니다. 카드사명이나 상품명을 사용하지 마세요.
+            - storeName은 고객이 식별할 수 있는 브랜드명과 지점명을 합친 전체 매장명입니다.
+            - 영수증에 '스타벅스 숙명여대점', '올리브영 홍대입구점'처럼 지점명이 표시되어 있으면
+              '스타벅스', '올리브영'처럼 브랜드명만 반환하지 말고 지점명까지 반드시 포함하세요.
+            - 상단 로고뿐 아니라 매장명, 가맹점명, 주소 주변의 지점 표기도 함께 확인하세요.
+            - '점', '지점', '역점', '캠퍼스점' 등의 지점명 접미사를 임의로 제거하지 마세요.
+            - 카드사명, 상품명, 대표자명, 주소 또는 결제 대행사명을 storeName으로 사용하지 마세요.
+            - 영수증에서 확인되지 않는 브랜드명이나 지점명은 추측하거나 생성하지 마세요.
             - amount는 최종 결제금액, 합계, 승인금액 중 실제 지불한 총액입니다.
             - 시각, 전화번호, 사업자번호, 승인번호, 품목 단가는 amount로 사용하지 마세요.
             - paymentDate는 결제 일시이며 yyyy-MM-dd'T'HH:mm:ss 형식으로 반환하세요.
@@ -57,29 +63,34 @@ public class ReceiptAnalysisService {
 
     public OcrResponse analyze(MultipartFile file) {
         validateImage(file);
-        OcrResponse ocrResult = null;
-        try {
-            ocrResult = naverOcrHandler.executeOcr(file);
-        } catch (GeneralException exception) {
-            log.warn("OCR 영수증 분석 실패, Gemini 보정을 시도합니다. code={}",
-                    exception.getCode().getCode());
-        }
-        if (isReliable(ocrResult)) {
-            return withCorrectionMetadata(ocrResult, false);
-        }
 
         try {
             String json = geminiReceiptClient.analyze(PROMPT, file.getBytes(), file.getContentType());
-            GeminiReceiptResponse corrected = objectMapper.readValue(json, GeminiReceiptResponse.class);
-            OcrResponse result = toOcrResponse(corrected);
-            if (!isValid(result)) {
-                throw new GeneralException(GeneralErrorCode.RECEIPT_INFORMATION_INSUFFICIENT);
+            GeminiReceiptResponse analyzed = objectMapper.readValue(json, GeminiReceiptResponse.class);
+            OcrResponse result = toOcrResponse(analyzed);
+            if (isReliable(result)) {
+                return result;
             }
-            return result;
-        } catch (GeneralException exception) {
-            throw exception;
+            log.warn("Gemini 영수증 분석 결과가 불충분하여 네이버 OCR fallback을 시도합니다.");
         } catch (Exception exception) {
-            log.warn("Gemini 영수증 보정 실패", exception);
+            log.warn("Gemini 영수증 분석 실패, 네이버 OCR fallback을 시도합니다. type={}",
+                    exception.getClass().getSimpleName());
+        }
+
+        try {
+            OcrResponse ocrResult = naverOcrHandler.executeOcr(file);
+            if (isReliable(ocrResult)) {
+                return withCorrectionMetadata(ocrResult, false);
+            }
+            throw new GeneralException(GeneralErrorCode.RECEIPT_INFORMATION_INSUFFICIENT);
+        } catch (GeneralException exception) {
+            if (exception.getCode() == GeneralErrorCode.RECEIPT_INFORMATION_INSUFFICIENT) {
+                throw exception;
+            }
+            log.warn("네이버 OCR fallback 실패. code={}", exception.getCode().getCode());
+            throw new GeneralException(GeneralErrorCode.RECEIPT_ANALYSIS_FAILED);
+        } catch (RuntimeException exception) {
+            log.warn("네이버 OCR fallback 실패", exception);
             throw new GeneralException(GeneralErrorCode.RECEIPT_ANALYSIS_FAILED);
         }
     }
