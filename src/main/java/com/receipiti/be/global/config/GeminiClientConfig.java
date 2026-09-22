@@ -21,7 +21,8 @@ public class GeminiClientConfig {
                 .httpOptions(HttpOptions.builder()
                         .timeout(timeoutMillis)
                         .retryOptions(HttpRetryOptions.builder()
-                                .attempts(retryAttempts)
+                                // SDK의 attempts는 최초 요청을 포함한 전체 시도 횟수다.
+                                .attempts(retryAttempts + 1)
                                 .initialDelay(1.0)
                                 .maxDelay(4.0)
                                 .expBase(2.0)
