@@ -27,7 +27,8 @@ public class PersonalizedCategoryService {
     private static final int SAME_BUSINESS_CATEGORY_SCORE = 20;
     private static final int RECENT_30_DAYS_BONUS = 10;
     private static final int RECENT_90_DAYS_BONUS = 5;
-    private static final int MINIMUM_AUTO_APPLY_COUNT = 3;
+    // 사용자가 한 번이라도 직접 선택한 이력이 있으면 다음 결제부터 바로 반영한다.
+    private static final int MINIMUM_AUTO_APPLY_COUNT = 1;
     private static final double MINIMUM_AUTO_APPLY_CONFIDENCE = 0.75;
 
     private final CategorySelectionHistoryRepository categorySelectionHistoryRepository;
