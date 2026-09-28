@@ -61,6 +61,9 @@ class PersonalizedCategoryServiceTest {
                 .orElseThrow();
 
         assertThat(recommendation.category()).isEqualTo(cafe);
+        assertThat(recommendation.matchedCount()).isEqualTo(1);
+        assertThat(recommendation.confidence()).isEqualTo(1.0);
+        assertThat(recommendation.autoApplicable()).isTrue();
         assertThat(recommendation.reason()).isEqualTo(RecommendationReason.SAME_STORE);
         verify(merchantNameNormalizer, never()).normalizeBrandName(store.getName());
         verify(categorySelectionHistoryRepository, never())
@@ -68,7 +71,7 @@ class PersonalizedCategoryServiceTest {
     }
 
     @Test
-    void 동일_브랜드에서_세_번_선택하고_신뢰도가_75퍼센트면_자동_적용한다() {
+    void 동일_브랜드에서_선택_이력이_있고_신뢰도가_75퍼센트면_자동_적용한다() {
         String normalizedBrandName = "스타벅스";
         LocalDateTime recent = LocalDateTime.now().minusDays(5);
         when(categorySelectionHistoryRepository
@@ -98,7 +101,7 @@ class PersonalizedCategoryServiceTest {
     }
 
     @Test
-    void 브랜드_이력이_없으면_동일_업종_선택_빈도로_추천한다() {
+    void 브랜드_이력이_없으면_동일_업종_선택_이력을_즉시_자동_적용한다() {
         when(categorySelectionHistoryRepository
                 .findAllByMemberAndStoreOrderByCreatedAtDesc(member, store))
                 .thenReturn(List.of());
@@ -120,7 +123,7 @@ class PersonalizedCategoryServiceTest {
         assertThat(recommendation.category()).isEqualTo(cafe);
         assertThat(recommendation.matchedCount()).isEqualTo(2);
         assertThat(recommendation.confidence()).isEqualTo(1.0);
-        assertThat(recommendation.autoApplicable()).isFalse();
+        assertThat(recommendation.autoApplicable()).isTrue();
         assertThat(recommendation.reason())
                 .isEqualTo(RecommendationReason.SAME_BUSINESS_CATEGORY);
     }
